@@ -1,0 +1,66 @@
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE / editor
+# =========================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================
+# Environment / local config
+# =========================
+.env
+.env.*
+*.local
+
+# =========================
+# Java / Maven / Spring Boot
+# =========================
+backend/target/
+**/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+*.class
+
+# =========================
+# Vue / Vite / Node
+# =========================
+frontend/node_modules/
+**/node_modules/
+frontend/dist/
+**/dist/
+frontend/dist-ssr/
+coverage/
+*.tsbuildinfo
+.eslintcache
+
+# =========================
+# Test / tool artifacts
+# =========================
+/cypress/videos/
+/cypress/screenshots/
+__screenshots__/
+*.timestamp-*-*.mjs
+
