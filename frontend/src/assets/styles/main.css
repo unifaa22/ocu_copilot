@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+@import 'tailwindcss';
+@import '@fortawesome/fontawesome-free/css/all.min.css';
+
+/* 手动主题切换：依赖 html.dark 类，而非仅跟随系统 prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Fira Sans', ui-sans-serif, system-ui, sans-serif;
+  --color-morandi-clay: #c08261;
+  --color-morandi-clay-hover: #a86f51;
+  --color-morandi-peach: #d99b82;
+  --color-morandi-apricot: #e6a28a;
+  --color-morandi-sage: #8ea891;
+  --color-morandi-blue: #8ca3a6;
+  --color-morandi-sand: #faf6f0;
+  --color-morandi-sand-dark: #efeae2;
+  --color-morandi-charcoal: #2d2722;
+  --color-morandi-dark-bg: #1c1614;
+  --color-morandi-dark-card: #2b2320;
+  --color-morandi-dark-text: #f4ece4;
+}
+
+html {
+  font-family: var(--font-sans);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+.light ::-webkit-scrollbar-thumb {
+  background: #d99b82;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #c08261;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.markdown-body h1 {
+  @apply mb-4 border-b pb-2 text-2xl font-bold;
+}
+.markdown-body h2 {
+  @apply mt-4 mb-2 text-xl font-bold;
+}
+.markdown-body p {
+  @apply mb-3 leading-relaxed;
+}
+.markdown-body ul {
+  @apply mb-3 list-disc pl-5;
+}
+.markdown-body ol {
+  @apply mb-3 list-decimal pl-5;
+}
+.markdown-body code {
+  @apply rounded bg-orange-100 px-1 py-0.5 font-mono text-sm dark:bg-amber-950;
+}
+.markdown-body pre {
+  @apply my-3 overflow-x-auto rounded bg-neutral-100 p-3 font-mono text-sm dark:bg-neutral-800;
+}
+.markdown-body blockquote {
+  @apply my-2 border-l-4 border-morandi-peach pl-4 text-neutral-600 italic dark:text-neutral-400;
+}
+
+.btn-primary {
+  @apply cursor-pointer rounded-lg bg-morandi-clay px-4 py-2 text-sm font-medium text-white shadow transition-colors duration-200 hover:bg-morandi-clay-hover disabled:cursor-not-allowed disabled:opacity-50;
+}
+.btn-secondary {
+  @apply cursor-pointer rounded-lg border border-morandi-peach/20 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors duration-200 hover:bg-morandi-sand dark:border-morandi-peach/10 dark:bg-morandi-dark-card dark:text-morandi-dark-text dark:hover:bg-morandi-dark-bg;
+}
+.input-field {
+  @apply w-full rounded-lg border border-morandi-peach/20 bg-white px-4 py-2.5 text-sm transition-colors duration-200 outline-none focus:border-morandi-clay focus:ring-2 focus:ring-morandi-clay/20 dark:border-morandi-peach/10 dark:bg-morandi-dark-bg dark:text-morandi-dark-text;
+}

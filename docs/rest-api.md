@@ -93,19 +93,19 @@ upload:
 
 ### 1.6 枚举说明
 
-**主题 theme**：`light` | `dark` | `system`
-
 **文件类型 fileType**：`md` | `pdf` | `doc` | `docx`
 
 **同步状态 syncStatus**：`0` 未同步 | `1` 成功 | `2` 失败
 
 **团队成员 status**：`0` 待接受 | `1` 已加入 | `2` 已拒绝
 
-**成员角色 memberRole**：`0` 普通成员 | `1` 创建者`
+**成员角色 memberRole**：`0` 普通成员 | `1` 创建者
 
 **角色 roles（展示用）**：`USER` 普通用户 | `TEAM_CREATOR` 团队创建者
 
 **共享开关 isShare**：`0` 关闭 | `1` 开启
+
+**主题 theme（仅前端）**：`light` | `dark` | `system` — 存 `localStorage`，不入库，见 §3.0
 
 ---
 
@@ -142,7 +142,6 @@ upload:
     "id": 1,
     "username": "zhangsan",
     "avatar": null,
-    "theme": "system",
     "roles": ["USER"]
   }
 }
@@ -193,6 +192,21 @@ upload:
 
 > 以下接口均需 JWT。
 
+### 3.0 主题切换（纯前端，无后端接口）
+
+明暗主题（`light` / `dark` / `system`）为 UI 偏好，**不写入数据库**。
+
+| 项 | 约定 |
+|----|------|
+| 存储位置 | 浏览器 `localStorage` |
+| 推荐 key | `app-theme` |
+| 默认值 | `system`（跟随系统） |
+| 切换时机 | 用户在前端设置页切换后立即生效并持久化 |
+
+前端可在应用启动时读取 `localStorage`，配合 CSS 变量或主题插件（如 VueUse `useDark`）实现。
+
+---
+
 ### 3.1 获取当前用户信息
 
 **GET** `/api/user/profile`
@@ -205,7 +219,6 @@ upload:
   "username": "zhangsan",
   "avatar": "avatars/1/xxx.jpg",
   "avatarUrl": "http://minio.example/presigned-url...",
-  "theme": "system",
   "roles": ["USER", "TEAM_CREATOR"]
 }
 ```
@@ -238,21 +251,7 @@ upload:
 
 ---
 
-### 3.3 修改主题
-
-**PUT** `/api/user/theme`
-
-**请求体**
-
-```json
-{
-  "theme": "dark"
-}
-```
-
----
-
-### 3.4 上传头像
+### 3.3 上传头像
 
 **POST** `/api/user/avatar`
 
@@ -1013,7 +1012,7 @@ upload:
 | 模块 | 接口 | 鉴权 | 额外权限 |
 |------|------|------|----------|
 | 认证 | register / login | 否 | — |
-| 个人中心 | profile / password / theme / avatar | 是 | 本人 |
+| 个人中心 | profile / password / avatar | 是 | 本人 |
 | 分类 | CRUD | 是 | 分类 owner |
 | 文件 | CRUD / preview | 是 | owner 或共享成员只读 |
 | 同步 | POST sync | 是 | 分类 owner |
@@ -1048,7 +1047,6 @@ upload:
 | POST | /api/auth/login | 登录 |
 | GET | /api/user/profile | 当前用户信息 |
 | PUT | /api/user/password | 修改密码 |
-| PUT | /api/user/theme | 修改主题 |
 | POST | /api/user/avatar | 上传头像 |
 | GET | /api/categories | 我的分类列表 |
 | POST | /api/categories | 创建分类 |
@@ -1089,7 +1087,7 @@ upload:
 | GET | /api/teams/{teamId}/categories | 共享分类列表 |
 | GET | /api/teams/{teamId}/categories/{categoryId}/files | 共享文件列表 |
 
-**合计：41 个接口**
+**合计：40 个接口**
 
 ---
 
@@ -1099,3 +1097,4 @@ upload:
 |------|------|------|
 | v1.0 | 2026-05-24 | 初稿，对齐需求 v1.2、数据库 v1.1 |
 | v1.1 | 2026-05-24 | Review 确认：joined 含自建团队、预览 URL 共用、文件上限对齐 Dify、头像 2MB、同步阻塞 |
+| v1.2 | 2026-05-24 | 主题不入库，改前端 localStorage；移除 PUT /api/user/theme |

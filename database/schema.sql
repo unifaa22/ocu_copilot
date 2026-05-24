@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS sys_user (
     username    VARCHAR(50)     NOT NULL COMMENT '用户名，唯一(仅未删除记录)',
     password    VARCHAR(100)    NOT NULL COMMENT 'BCrypt加密密码',
     avatar      VARCHAR(512)    NULL     COMMENT '头像MinIO object key',
-    theme       VARCHAR(20)     NOT NULL DEFAULT 'system' COMMENT '主题: light/dark/system',
     is_deleted  TINYINT         NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0否 1是',
     create_time DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -33,7 +32,6 @@ CREATE TABLE IF NOT EXISTS sys_user (
 CREATE TABLE IF NOT EXISTS role (
     id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '角色ID',
     role_name   VARCHAR(50)     NOT NULL COMMENT '角色编码: USER/TEAM_CREATOR',
-    role_desc   VARCHAR(200)    NULL     COMMENT '角色描述',
     is_deleted  TINYINT         NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0否 1是(系统角色固定为0)',
     create_time DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -178,9 +176,8 @@ CREATE TABLE IF NOT EXISTS chat_history (
 -- -----------------------------------------------------------------------------
 -- 初始化角色数据
 -- -----------------------------------------------------------------------------
-INSERT INTO role (id, role_name, role_desc) VALUES
-    (1, 'USER',         '普通用户'),
-    (2, 'TEAM_CREATOR', '团队创建者')
+INSERT INTO role (id, role_name) VALUES
+    (1, 'USER'),
+    (2, 'TEAM_CREATOR')
 ON DUPLICATE KEY UPDATE
-    role_name = VALUES(role_name),
-    role_desc = VALUES(role_desc);
+    role_name = VALUES(role_name);

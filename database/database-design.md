@@ -102,7 +102,6 @@ erDiagram
 | username | VARCHAR(50) | NOT NULL, UNIQUE | 登录用户名 |
 | password | VARCHAR(100) | NOT NULL | BCrypt 密文 |
 | avatar | VARCHAR(512) | NULL | MinIO object key |
-| theme | VARCHAR(20) | NOT NULL, DEFAULT 'system' | light / dark / system |
 | is_deleted | TINYINT | NOT NULL, DEFAULT 0 | 逻辑删除 |
 | create_time | DATETIME | NOT NULL | 创建时间 |
 | update_time | DATETIME | NOT NULL | 更新时间 |
@@ -112,6 +111,8 @@ erDiagram
 - 若用户仍是某未解散团队（`team.is_deleted=0`）的 `creator_id`，**不允许**逻辑删除账号
 - 逻辑删除用户时，将 `username` 加后缀 `__del_{id}`，避免占用唯一约束导致无法重新注册
 
+> **【说明】** 明暗主题（light / dark / system）为纯前端 UI 偏好，**不入库**，由前端 `localStorage` 持久化（如 key: `app-theme`），详见接口文档。
+
 ---
 
 ### 3.2 角色表 `role`
@@ -120,19 +121,18 @@ erDiagram
 |------|------|------|------|
 | id | BIGINT UNSIGNED | PK, AI | 角色 ID |
 | role_name | VARCHAR(50) | NOT NULL, UNIQUE | 英文 code：`USER` / `TEAM_CREATOR` |
-| role_desc | VARCHAR(200) | NULL | 中文描述，供展示映射 |
 | is_deleted | TINYINT | NOT NULL, DEFAULT 0 | 固定为 0 |
 | create_time | DATETIME | NOT NULL | 创建时间 |
 | update_time | DATETIME | NOT NULL | 更新时间 |
 
 **初始化数据**：
 
-| id | role_name | role_desc |
-|----|-----------|-----------|
-| 1 | USER | 普通用户 |
-| 2 | TEAM_CREATOR | 团队创建者 |
+| id | role_name |
+|----|-----------|
+| 1 | USER |
+| 2 | TEAM_CREATOR |
 
-前端 / 后端常量映射英文 code → 中文展示名。
+中文展示名在前后端常量中映射，例如 `USER` → 「普通用户」、`TEAM_CREATOR` → 「团队创建者」，**不入库**。
 
 ---
 
