@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学生AI知识工作台</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Marked.js (Markdown Parser) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            morandi: {
+              clay: '#C08261',       // 主调：陶土色
+              clayHover: '#A86F51',  // 陶土深色
+              peach: '#D99B82',      // 辅调：杏粉色
+              apricot: '#E6A28A',    // 浅杏色
+              sage: '#8EA891',       // 成功/同步：豆绿色
+              blue: '#8CA3A6',       // 辅助：灰蓝色
+              sand: '#FAF6F0',       // 浅沙色（亮模式背景）
+              sandDark: '#EFEAE2',   // 卡片浅背景
+              charcoal: '#2D2722',   // 深碳黑（文字主色）
+              // 夜间暗色调
+              darkBg: '#1C1614',     // 暗背景
+              darkCard: '#2B2320',   // 暗卡片背景
+              darkText: '#F4ECE4'    // 暗文字主色
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* 莫兰迪色系自定义滚动条 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .light ::-webkit-scrollbar-thumb {
+      background: #D99B82;
+      border-radius: 4px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #C08261;
+      border-radius: 4px;
+    }
+    /* Markdown 预览区基础样式适配 */
+    .markdown-body h1 { @apply text-2xl font-bold mb-4 border-b pb-2; }
+    .markdown-body h2 { @apply text-xl font-bold mt-4 mb-2; }
+    .markdown-body p { @apply mb-3 leading-relaxed; }
+    .markdown-body ul { @apply list-disc pl-5 mb-3; }
+    .markdown-body ol { @apply list-decimal pl-5 mb-3; }
+    .markdown-body code { @apply bg-orange-100 dark:bg-amber-950 px-1 py-0.5 rounded text-sm font-mono; }
+    .markdown-body pre { @apply bg-neutral-100 dark:bg-neutral-800 p-3 rounded overflow-x-auto my-3 font-mono text-sm; }
+    .markdown-body blockquote { @apply border-l-4 border-morandi-peach pl-4 italic text-neutral-600 dark:text-neutral-400 my-2; }
+  </style>
+</head>
+<body class="transition-colors duration-300 light">
+  <div id="app" :class="themeClass" class="min-h-screen bg-morandi-sand text-morandi-charcoal dark:bg-morandi-darkBg dark:text-morandi-darkText font-sans antialiased flex flex-col">
+    
+    <!-- 顶部导航栏 -->
+    <header class="border-b border-morandi-peach/20 bg-white dark:bg-morandi-darkCard shadow-sm sticky top-0 z-40 transition-colors duration-300">
+      <div class="px-6 py-3.5 flex items-center justify-between">
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-morandi-clay text-white flex items-center justify-center shadow-md">
+            <i class="fa-solid fa-graduation-cap text-xl"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold tracking-wide">OCU.copilot </h1>
+            <p class="text-xs text-morandi-clay dark:text-morandi-peach font-medium">高效学习 · 智能检索 · 小组协作</p>
+          </div>
+        </div>
+
+        <!-- 极简 RBAC 角色切换与用户信息 -->
+        <div class="flex items-center space-x-6">
+          <!-- 权限角色一键切换面板 -->
+          <div class="flex items-center bg-morandi-sandDark dark:bg-morandi-darkBg p-1 rounded-lg border border-morandi-peach/10">
+            <span class="text-xs font-semibold px-2 text-neutral-500 dark:text-neutral-400">当前演示角色:</span>
+            <button 
+              @click="switchRole(1)"
+              :class="currentUser.roleId === 1 ? 'bg-morandi-clay text-white shadow' : 'text-neutral-600 dark:text-neutral-300 hover:text-morandi-clay'"
+              class="text-xs px-3 py-1.5 rounded-md font-medium transition-all duration-200"
+            >
+              <i class="fa-solid fa-user-graduate mr-1"></i>普通用户
+            </button>
+            <button 
+              @click="switchRole(2)"
+              :class="currentUser.roleId === 2 ? 'bg-morandi-clay text-white shadow' : 'text-neutral-600 dark:text-neutral-300 hover:text-morandi-clay'"
+              class="text-xs px-3 py-1.5 rounded-md font-medium transition-all duration-200"
+            >
+              <i class="fa-solid fa-user-tie mr-1"></i>团队创建者
+            </button>
+          </div>
+
+          <!-- 主题切换 -->
+          <div class="relative">
+            <button @click="showThemeDropdown = !showThemeDropdown" class="p-2 rounded-lg bg-morandi-sandDark dark:bg-morandi-darkBg border border-morandi-peach/15 hover:border-morandi-clay/50 transition">
+              <i v-if="currentTheme === 'light'" class="fa-solid fa-sun text-amber-500"></i>
+              <i v-else-if="currentTheme === 'dark'" class="fa-solid fa-moon text-indigo-400"></i>
+              <i v-else class="fa-solid fa-desktop text-neutral-400"></i>
+            </button>
+            <div v-if="showThemeDropdown" @click.away="showThemeDropdown = false" class="absolute right-0 mt-2 w-36 bg-white dark:bg-morandi-darkCard border border-morandi-peach/20 rounded-lg shadow-xl py-1 z-50">
+              <button @click="setTheme('light')" class="w-full text-left px-4 py-2 text-sm hover:bg-morandi-sand dark:hover:bg-morandi-darkBg flex items-center space-x-2">
+                <i class="fa-solid fa-sun text-amber-500 w-4"></i> <span>白天模式</span>
+              </button>
+              <button @click="setTheme('dark')" class="w-full text-left px-4 py-2 text-sm hover:bg-morandi-sand dark:hover:bg-morandi-darkBg flex items-center space-x-2">
+                <i class="fa-solid fa-moon text-indigo-400 w-4"></i> <span>夜间模式</span>
+              </button>
+              <button @click="setTheme('system')" class="w-full text-left px-4 py-2 text-sm hover:bg-morandi-sand dark:hover:bg-morandi-darkBg flex items-center space-x-2">
+                <i class="fa-solid fa-desktop text-neutral-400 w-4"></i> <span>跟随系统</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 个人中心入口 -->
+          <div class="flex items-center space-x-3 border-l border-morandi-peach/20 pl-6 cursor-pointer" @click="activeTab = 'profile'">
+            <img :src="currentUser.avatar" class="w-9 h-9 rounded-full object-cover border-2 border-morandi-clay shadow-sm" alt="User Avatar">
+            <div class="hidden md:block text-left">
+              <div class="text-sm font-semibold tracking-wide">{{ currentUser.username }}</div>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-morandi-peach/10 text-morandi-clay font-bold">{{ currentUser.roleName }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 工作台主布局 -->
+    <div class="flex-1 flex overflow-hidden">
+      <!-- 左侧边栏导航 -->
+      <aside class="w-64 border-r border-morandi-peach/10 bg-white dark:bg-morandi-darkCard flex flex-col justify-between transition-colors duration-300">
+        <div class="p-4 space-y-1.5">
+          <p class="text-[11px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest px-3 mb-2">主功能区</p>
+          
+          <button @click="activeTab = 'knowledge'" :class="activeTab === 'knowledge' ? 'bg-morandi-clay/10 text-morandi-clay font-bold border-l-4 border-morandi-clay' : 'text-neutral-600 dark:text-neutral-300 hover:bg-morandi-sand dark:hover:bg-morandi-darkBg'" class="w-full flex items-center px-4 py-3 rounded-r-lg space-x-3 transition duration-200">
+            <i class="fa-solid fa-book-bookmark text-lg"></i>
+            <span class="text-sm">我的知识库</span>
+          </button>
+
+          <button @click="activeTab = 'chat'" :class="activeTab === 'chat' ? 'bg-morandi-clay/10 text-morandi-clay font-bold border-l-4 border-morandi-clay' : 'text-neutral-600 dark:text-neutral-300 hover:bg-morandi-sand dark:hover:bg-morandi-darkBg'" class="w-full flex items-center px-4 py-3 rounded-r-lg space-x-3 transition duration-200">
+            <i class="fa-solid fa-comments text-lg"></i>
+            <span class="text-sm">AI 智能问答</span>
+          </button>
+
+          <button @click="activeTab = 'notes'" :class="activeTab === 'notes' ? 'bg-morandi-clay/10 text-morandi-clay font-bold border-l-4 border-morandi-clay' : 'text-neutral-600 dark:text-neutral-300 hover:bg-morandi-sand dark:hover:bg-morandi-darkBg'" class="w-full flex items-center px-4 py-3 rounded-r-lg space-x-3 transition duration-200">
+            <i class="fa-solid fa-pen-to-square text-lg"></i>
+            <span class="text-sm">学习笔记</span>
+          </button>
+
+          <button @click="activeTab = 'team'" :class="activeTab === 'team' ? 'bg-morandi-clay/10 text-morandi-clay font-bold border-l-4 border-morandi-clay' : 'text-neutral-600 dark:text-neutral-300 hover:bg-morandi-sand dark:hover:bg-morandi-darkBg'" class="w-full flex items-center px-4 py-3 rounded-r-lg space-x-3 transition duration-200">
+            <i class="fa-solid fa-users-viewfinder text-lg"></i>
+            <span class="text-sm">团队共享协作</span>
+          </button>
+
+          <p class="text-[11px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest px-3 pt-6 mb-2">系统管理</p>
+          <button @click="activeTab = 'profile'" :class="activeTab === 'profile' ? 'bg-morandi-clay/10 text-morandi-clay font-bold border-l-4 border-morandi-clay' : 'text-neutral-600 dark:text-neutral-300 hover:bg-morandi-sand dark:hover:bg-morandi-darkBg'" class="w-full flex items-center px-4 py-3 rounded-r-lg space-x-3 transition duration-200">
+            <i class="fa-solid fa-user-gear text-lg"></i>
+            <span class="text-sm">个人中心</span>
+          </button>
+        </div>
+
+        <!-- 团队共享快捷挂件 -->
+        <div class="p-4 m-4 bg-morandi-sand dark:bg-morandi-darkBg rounded-xl border border-morandi-peach/10">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-neutral-500">学习小组共享状态</span>
+            <span class="flex h-2 w-2 relative">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-morandi-sage opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-morandi-sage"></span>
+            </span>
+          </div>
+          <div class="text-[11px] text-neutral-500 dark:text-neutral-400 leading-relaxed">
+            团队「{{ team.teamName }}」已建立，拥有 {{ team.members.length }} 名组员，共共享了 {{ sharedCategoriesCount }} 个知识文件夹。
+          </div>
+        </div>
+      </aside>
+
+      <!-- 右侧核心视图面板 -->
+      <main class="flex-1 flex flex-col bg-morandi-sand/40 dark:bg-[#150F0D] overflow-y-auto">
+        
+        <!-- 1. 知识库管理模块 -->
+        <section v-if="activeTab === 'knowledge'" class="p-6 space-y-6 flex-1 flex flex-col">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold tracking-tight">知识库文件夹</h2>
+              <p class="text-xs text-neutral-500 mt-1">管理你的学习文档（Word、PDF、MD）。点击右侧同步可一键将文档提交 Dify 转换问答向量库。</p>
+            </div>
+            <!-- 创建知识库按钮 -->
+            <button @click="openCreateFolderModal" class="px-4 py-2 bg-morandi-clay hover:bg-morandi-clayHover text-white rounded-lg shadow text-sm font-medium flex items-center space-x-2 transition">
+              <i class="fa-solid fa-folder-plus"></i>
+              <span>创建知识文件夹</span>
+            </button>
+          </div>
+
+          <!-- 文件夹卡片 Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div 
+              v-for="category in categories" 
+              :key="category.id"
+              :class="selectedCategoryId === category.id ? 'ring-2 ring-morandi-clay bg-white dark:bg-morandi-darkCard' : 'bg-white dark:bg-morandi-darkCard hover:shadow-md border border-morandi-peach/5'"
+              class="rounded-xl p-5 cursor-pointer relative transition-all duration-200 flex flex-col justify-between"
+              @click="selectCategory(category.id)"
+            >
+              <div>
+                <div class="flex items-start justify-between">
+                  <div class="w-11 h-11 rounded-lg bg-morandi-peach/15 text-morandi-clay flex items-center justify-center">
+                    <i class="fa-solid fa-folder-open text-xl"></i>
+                  </div>
+                  <!-- 操作按钮：重命名/删除 -->
+                  <div class="flex items-center space-x-1.5" @click.stop>
+                    <button @click="openRenameFolderModal(category)" class="p-1.5 text-neutral-400 hover:text-morandi-clay transition">
+                      <i class="fa-solid fa-edit text-xs"></i>
+                    </button>
+                    <button @click="deleteFolder(category.id)" class="p-1.5 text-neutral-400 hover:text-red-500 transition">
+                      <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+                <h3 class="font-bold text-base mt-4 text-neutral-800 dark:text-white">{{ category.categoryName }}</h3>
+                <p class="text-xs text-neutral-500 mt-1">文档数量: {{ getFilesCountByCategory(category.id) }} 份</p>
+              </div>
+
+              <!-- 同步Dify控制区 -->
+              <div class="mt-6 pt-4 border-t border-morandi-peach/10 flex items-center justify-between" @click.stop>
+                <div class="flex items-center space-x-1">
+                  <!-- 同步状态指示 -->
+                  <span v-if="getCategorySyncStatus(category.id) === 'all'" class="text-[11px] font-semibold text-morandi-sage flex items-center bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded">
+                    <i class="fa-solid fa-circle-check mr-1"></i>已全部同步
+                  </span>
+                  <span v-else-if="getCategorySyncStatus(category.id) === 'partial'" class="text-[11px] font-semibold text-amber-500 flex items-center bg-amber-50 dark:bg-amber-950/20 px-2 py-0.5 rounded">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i>部分待同步
+                  </span>
+                  <span v-else class="text-[11px] font-semibold text-neutral-400 flex items-center bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded">
+                    <i class="fa-solid fa-hourglass mr-1"></i>未同步到AI
+                  </span>
+                </div>
+                <button 
+                  @click="syncDify(category.id)"
+                  :disabled="isSyncingCategory === category.id || getFilesCountByCategory(category.id) === 0"
+                  :class="isSyncingCategory === category.id ? 'bg-neutral-200 text-neutral-400' : 'bg-morandi-peach/10 hover:bg-morandi-peach/20 text-morandi-clay'"
+                  class="px-2.5 py-1 rounded text-xs font-bold transition flex items-center space-x-1 disabled:opacity-50"
+                >
+                  <i v-if="isSyncingCategory === category.id" class="fa-solid fa-spinner animate-spin"></i>
+                  <i v-else class="fa-solid fa-arrows-rotate"></i>
+                  <span>{{ isSyncingCategory === category.id ? '同步中...' : '同步 Dify' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 选中文件夹的文件管理区 -->
+          <div v-if="selectedCategory" class="bg-white dark:bg-morandi-darkCard rounded-xl p-6 border border-morandi-peach/10 flex-1 flex flex-col">
+            <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-morandi-peach/10 pb-4 mb-4 gap-4">
+              <div>
+                <h3 class="font-bold text-lg text-morandi-clay flex items-center">
+                  <i class="fa-regular fa-folder-open mr-2"></i>
+                  <span>{{ selectedCategory.categoryName }}</span>
+                  <span class="ml-2 text-xs font-normal text-neutral-400">内的文件列表</span>
+                </h3>
+              </div>
+              <div class="flex items-center space-x-3">
+                <input 
+                  type="file" 
+                  id="file-upload" 
+                  class="hidden" 
+                  accept=".pdf,.doc,.docx,.md"
+                  @change="handleFileUpload"
+                >
+                <label 
+                  for="file-upload" 
+                  class="px-3 py-2 bg-morandi-peach hover:bg-morandi-peach/90 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-sm transition flex items-center space-x-1.5"
+                >
+                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                  <span>上传学习文档</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 文件列表 -->
+            <div v-if="currentCategoryFiles.length > 0" class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-neutral-150 dark:border-neutral-800 text-xs font-bold text-neutral-400 uppercase tracking-wider">
+                    <th class="py-3 px-4">文件名</th>
+                    <th class="py-3 px-4">格式</th>
+                    <th class="py-3 px-4">创建时间</th>
+                    <th class="py-3 px-4">Dify同步状态</th>
+                    <th class="py-3 px-4 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-neutral-100 dark:divide-neutral-800/50 text-sm">
+                  <tr v-for="file in currentCategoryFiles" :key="file.id" class="hover:bg-morandi-sand/30 dark:hover:bg-morandi-darkBg/30 transition">
+                    <td class="py-3.5 px-4 font-medium flex items-center space-x-2">
+                      <i v-if="file.fileType === 'pdf'" class="fa-solid fa-file-pdf text-red-500 text-base"></i>
+                      <i v-else-if="['doc','docx'].includes(file.fileType)" class="fa-solid fa-file-word text-blue-500 text-base"></i>
+                      <i v-else class="fa-solid fa-file-lines text-morandi-clay text-base"></i>
+                      <span class="truncate max-w-[240px]">{{ file.fileName }}</span>
+                    </td>
+                    <td class="py-3.5 px-4 text-xs font-bold uppercase text-neutral-500">{{ file.fileType }}</td>
+                    <td class="py-3.5 px-4 text-xs text-neutral-500">{{ file.create_time }}</td>
+                    <td class="py-3.5 px-4">
+                      <span v-if="file.is_sync" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400">
+                        <i class="fa-solid fa-check-double mr-1 text-[10px]"></i>已索引
+                      </span>
+                      <span v-else class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400">
+                        <i class="fa-solid fa-circle-exclamation mr-1 text-[10px]"></i>未索引
+                      </span>
+                    </td>
+                    <td class="py-3.5 px-4 text-right space-x-2">
+                      <button @click="previewFile(file)" class="px-2.5 py-1.5 rounded bg-morandi-sandDark dark:bg-morandi-darkBg hover:bg-morandi-peach/20 text-neutral-700 dark:text-neutral-300 text-xs font-semibold transition">
+                        <i class="fa-solid fa-eye mr-1"></i>预览
+                      </button>
+                      <button @click="renameFile(file)" class="p-1 text-neutral-400 hover:text-morandi-clay transition" title="重命名">
+                        <i class="fa-solid fa-file-signature"></i>
+                      </button>
+                      <button @click="deleteFile(file.id)" class="p-1 text-neutral-400 hover:text-red-500 transition" title="删除">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 空白状态 -->
+            <div v-else class="flex-1 flex flex-col items-center justify-center p-12 text-center">
+              <div class="w-16 h-16 rounded-full bg-morandi-sandDark dark:bg-morandi-darkBg flex items-center justify-center mb-4">
+                <i class="fa-regular fa-folder-open text-3xl text-neutral-400"></i>
+              </div>
+              <h4 class="font-bold text-neutral-700 dark:text-neutral-300">该知识文件夹暂无文档</h4>
+              <p class="text-xs text-neutral-500 mt-1 max-w-sm">请点击右上角「上传学习文档」按钮，支持 Markdown、PDF、Word 格式的精简文档。</p>
+            </div>
+          </div>
+
+          <!-- 未选中文件夹提示 -->
+          <div v-else class="bg-white dark:bg-morandi-darkCard rounded-xl p-12 border border-morandi-peach/10 text-center flex flex-col items-center justify-center flex-1">
+            <i class="fa-solid fa-circle-chevron-up text-4xl text-morandi-peach/50 animate-bounce mb-3"></i>
+            <h4 class="font-bold text-neutral-600 dark:text-neutral-400">请选择一个知识文件夹</h4>
+            <p class="text-xs text-neutral-400 mt-1">点击上方文件夹卡片，可对文件夹内的细化学习资料进行上传、预览及删除操作。</p>
+          </div>
+        </section>
+
+
+        <!-- 2. AI 智能问答模块 -->
+        <section v-if="activeTab === 'chat'" class="flex-1 flex overflow-hidden">
+          <!-- 问答数据源侧边选择栏 -->
+          <aside class="w-72 border-r border-morandi-peach/10 bg-white dark:bg-morandi-darkCard p-4 flex flex-col transition-colors duration-300">
+            <h3 class="font-bold text-sm text-neutral-800 dark:text-white mb-2 flex items-center">
+              <i class="fa-solid fa-server mr-2 text-morandi-clay"></i>AI 关联知识源
+            </h3>
+            <p class="text-[11px] text-neutral-500 mb-4">选中的文件夹将作为您当前会话提问的 Dify 向量搜索范围（支持多选）：</p>
+
+            <div class="flex-1 overflow-y-auto space-y-2 pr-1">
+              <!-- 本地知识库 -->
+              <div class="text-[11px] font-bold text-neutral-400 uppercase tracking-widest px-1 py-1">个人知识库</div>
+              <div 
+                v-for="category in categories" 
+                :key="'chat-c-' + category.id"
+                class="flex items-center justify-between p-2.5 rounded-lg border border-neutral-100 dark:border-neutral-800/40 hover:bg-morandi-sand/30 dark:hover:bg-morandi-darkBg/30 transition"
+              >
+                <label class="flex items-center space-x-2.5 cursor-pointer flex-1">
+                  <input 
+                    type="checkbox" 
+                    :value="category.id" 
+                    v-model="selectedChatCategories"
+                    class="rounded text-morandi-clay focus:ring-morandi-clay border-neutral-300 w-4 h-4"
+                  >
+                  <span class="text-xs font-semibold truncate max-w-[160px]">{{ category.categoryName }}</span>
+                </label>
+                <span class="text-[10px] text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded">
+                  {{ getFilesCountByCategory(category.id) }} 篇
+                </span>
+              </div>
+
+              <!-- 团队共享知识库 -->
+              <div class="text-[11px] font-bold text-neutral-400 uppercase tracking-widest px-1 pt-4 pb-1">小组共享知识库</div>
+              <div v-if="team.isShare" class="space-y-2">
+                <div 
+                  v-for="cat in teamSharedCategories" 
+                  :key="'chat-team-' + cat.id"
+                  class="flex items-center justify-between p-2.5 rounded-lg border border-dashed border-morandi-peach/30 bg-morandi-peach/5 hover:bg-morandi-peach/10 transition"
+                >
+                  <label class="flex items-center space-x-2.5 cursor-pointer flex-1">
+                    <input 
+                      type="checkbox" 
+                      :value="cat.id" 
+                      v-model="selectedChatCategories"
+                      class="rounded text-morandi-clay focus:ring-morandi-clay border-neutral-300 w-4 h-4"
+                    >
+                    <span class="text-xs font-semibold text-morandi-clay truncate max-w-[140px]">{{ cat.categoryName }}</span>
+                  </label>
+                  <span class="text-[9px] text-white bg-morandi-clay px-1.5 py-0.5 rounded-full font-bold">共享</span>
+                </div>
+              </div>
+              <div v-else class="text-[11px] text-neutral-400 italic px-2">
+                暂无小组共享内容 (管理员未开启)
+              </div>
+            </div>
+
+            <!-- 清空对话按钮 -->
+            <div class="pt-4 border-t border-morandi-peach/10">
+              <button @click="clearChatHistory" class="w-full py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-500 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5">
+                <i class="fa-solid fa-trash-can"></i>
+                <span>清空历史问答记录</span>
+              </button>
+            </div>
+          </aside>
+
+          <!-- 主问答区 -->
+          <div class="flex-1 flex flex-col bg-morandi-sand/20 dark:bg-[#1a1412]">
+            <!-- 问答头部信息 -->
+            <div class="bg-white dark:bg-morandi-darkCard px-6 py-3.5 border-b border-morandi-peach/10 flex items-center justify-between transition-colors duration-300">
+              <div class="flex items-center space-x-2">
+                <div class="w-3 h-3 rounded-full bg-morandi-sage animate-pulse"></div>
+                <span class="text-xs font-bold text-neutral-600 dark:text-neutral-400">已搭载 Dify-2.5 智能化知识库索引引擎</span>
+              </div>
+              <div class="text-xs text-neutral-400 font-medium">
+                当前检索源: <span class="font-bold text-morandi-clay">{{ selectedChatCategories.length }}</span> 个文件夹
+              </div>
+            </div>
+
+            <!-- 对话气泡展示列表 -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-6" id="chat-messages-container">
+              <div v-if="chatHistory.length > 0" class="space-y-6">
+                <div v-for="chat in chatHistory" :key="chat.id" class="space-y-4">
+                  <!-- 用户提问气泡 -->
+                  <div class="flex items-start justify-end space-x-3">
+                    <div class="flex flex-col items-end space-y-1 max-w-[70%]">
+                      <div class="bg-morandi-clay text-white rounded-2xl rounded-tr-none px-4 py-3 text-sm shadow-sm leading-relaxed">
+                        {{ chat.question }}
+                      </div>
+                      <span class="text-[10px] text-neutral-400">{{ chat.create_time }}</span>
+                    </div>
+                    <img :src="currentUser.avatar" class="w-8.5 h-8.5 rounded-full object-cover border border-morandi-clay/50 shadow-sm" alt="User Avatar">
+                  </div>
+
+                  <!-- AI 答复气泡 -->
+                  <div class="flex items-start space-x-3">
+                    <div class="w-8.5 h-8.5 rounded-full bg-morandi-peach/20 text-morandi-clay flex items-center justify-center font-bold text-sm shadow-sm">
+                      <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="flex flex-col items-start space-y-1 max-w-[75%]">
+                      <!-- 引用标志 -->
+                      <div class="flex items-center space-x-1 mb-1">
+                        <span class="text-[9px] font-bold text-morandi-clay uppercase tracking-wider bg-morandi-peach/10 px-1.5 py-0.5 rounded-full flex items-center">
+                          <i class="fa-solid fa-link text-[8px] mr-1"></i>Dify 知识重塑响应
+                        </span>
+                        <span v-for="catId in chat.category_ids" :key="catId" class="text-[9px] text-neutral-400 px-1">
+                          📁 {{ getCategoryNameById(catId) }}
+                        </span>
+                      </div>
+                      <!-- 对话文本内容 -->
+                      <div class="bg-white dark:bg-morandi-darkCard text-neutral-800 dark:text-neutral-200 rounded-2xl rounded-tl-none px-4 py-3.5 text-sm shadow-sm border border-morandi-peach/10 leading-relaxed w-full">
+                        <div v-html="renderMarkdown(chat.answer)" class="markdown-body"></div>
+                      </div>
+                      <!-- 底部操作：单条删除 -->
+                      <div class="flex items-center justify-between w-full px-1.5 mt-0.5">
+                        <span class="text-[10px] text-neutral-400">向量检索：毫秒级响应</span>
+                        <button @click="deleteChatEntry(chat.id)" class="text-neutral-400 hover:text-red-500 text-xs transition">
+                          <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- AI Typing 骨架模拟屏 -->
+                <div v-if="isAiTyping" class="flex items-start space-x-3">
+                  <div class="w-8.5 h-8.5 rounded-full bg-morandi-peach/20 text-morandi-clay flex items-center justify-center font-bold text-sm">
+                    <i class="fa-solid fa-spinner animate-spin"></i>
+                  </div>
+                  <div class="flex flex-col items-start space-y-1.5 max-w-[60%]">
+                    <span class="text-[9px] font-bold text-neutral-400 animate-pulse">Dify工作流深度挖掘中...</span>
+                    <div class="bg-white dark:bg-morandi-darkCard rounded-2xl rounded-tl-none px-4 py-3 text-sm shadow-sm border border-morandi-peach/10 space-y-2 w-72">
+                      <div class="h-3 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse w-full"></div>
+                      <div class="h-3 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse w-5/6"></div>
+                      <div class="h-3 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse w-3/4"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 空对话状态 -->
+              <div v-else class="h-full flex flex-col items-center justify-center p-8 text-center">
+                <div class="w-20 h-20 rounded-full bg-morandi-peach/10 text-morandi-clay flex items-center justify-center mb-4 shadow-inner">
+                  <i class="fa-solid fa-brain-circuit text-3xl"></i>
+                </div>
+                <h3 class="font-bold text-lg text-neutral-700 dark:text-neutral-300">欢迎进入 AI 跨文档问答终端</h3>
+                <p class="text-xs text-neutral-500 mt-1 max-w-md leading-relaxed">
+                  请在左侧勾选您想要关联的知识库（例如：期末重点复习），并在下方对话框键入问题。AI 将通过 Dify 文档向量索引，从本地及共享学习文档中精准萃取提炼答案！
+                </p>
+                <div class="grid grid-cols-2 gap-3 mt-6 max-w-lg">
+                  <button @click="preSetQuestion('帮我总结一下已同步知识库中的所有核心知识要点')" class="p-3 text-left rounded-xl border border-morandi-peach/15 bg-white dark:bg-morandi-darkCard hover:border-morandi-clay transition text-xs">
+                    <span class="font-bold block text-morandi-clay">📑 核心知识点梳理</span>
+                    <span class="text-[10px] text-neutral-500 mt-1 block">整理已同步文档的关键知识网络</span>
+                  </button>
+                  <button @click="preSetQuestion('依据关联文件，帮我出5道相关的期末模拟练习选择题')" class="p-3 text-left rounded-xl border border-morandi-peach/15 bg-white dark:bg-morandi-darkCard hover:border-morandi-clay transition text-xs">
+                    <span class="font-bold block text-morandi-clay">🎯 智能期末测验</span>
+                    <span class="text-[10px] text-neutral-500 mt-1 block">基于知识库文档一键出题演练</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 问答输入底栏 -->
+            <div class="bg-white dark:bg-morandi-darkCard p-4 border-t border-morandi-peach/10 transition-colors duration-300">
+              <div class="flex items-end space-x-3 max-w-5xl mx-auto">
+                <textarea 
+                  v-model="inputQuestion" 
+                  @keydown.enter.prevent="sendQuestion"
+                  rows="2" 
+                  placeholder="请输入您的提问，按回车键（Enter）快速发送..." 
+                  class="flex-1 bg-morandi-sand dark:bg-morandi-darkBg border border-morandi-peach/20 focus:border-morandi-clay focus:ring-1 focus:ring-morandi-clay rounded-xl px-4 py-2.5 text-sm outline-none resize-none transition"
+                ></textarea>
+                <button 
+                  @click="sendQuestion" 
+                  :disabled="isAiTyping || !inputQuestion.trim() || selectedChatCategories.length === 0"
+                  class="h-12 px-6 bg-morandi-clay hover:bg-morandi-clayHover text-white rounded-xl shadow-md font-semibold transition disabled:opacity-40 disabled:hover:bg-morandi-clay flex items-center justify-center space-x-1.5"
+                >
+                  <i class="fa-regular fa-paper-plane"></i>
+                  <span>提问</span>
+                </button>
+              </div>
+              <p class="text-[11px] text-neutral-400 text-center mt-2">提示：必须在左侧至少勾选一个知识文件夹进行问答关联；所有对话均通过 Dify API 智能流式路由返回。</p>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 3. 学习笔记模块（全自研，双栏 Markdown 编辑器） -->
+        <section v-if="activeTab === 'notes'" class="flex-1 flex overflow-hidden">
+          <!-- 笔记列表与标签过滤器 -->
+          <aside class="w-80 border-r border-morandi-peach/10 bg-white dark:bg-morandi-darkCard flex flex-col transition-colors duration-300">
+            <!-- 头部 -->
+            <div class="p-4 border-b border-morandi-peach/10">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-sm flex items-center">
+                  <i class="fa-solid fa-file-invoice text-morandi-clay mr-2"></i>学习笔记本
+                </h3>
+                <button @click="createNewNote" class="px-2 py-1 bg-morandi-peach text-white text-[11px] font-bold rounded hover:bg-morandi-peach/90 flex items-center">
+                  <i class="fa-solid fa-plus mr-1"></i>新笔记
+                </button>
+              </div>
+              <!-- 搜索与标签过滤 -->
+              <div class="relative mb-2">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400">
+                  <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                </span>
+                <input 
+                  type="text" 
+                  v-model="noteSearchQuery" 
+                  placeholder="搜索笔记标题/内容..." 
+                  class="w-full bg-morandi-sand dark:bg-morandi-darkBg border border-morandi-peach/15 rounded-lg pl-8 pr-3 py-1.5 text-xs outline-none focus:border-morandi-clay transition"
+                >
+              </div>
+              <!-- 标签横向滑动选择器 -->
+              <div class="flex items-center space-x-1 overflow-x-auto pb-1.5 pt-1.5 scrollbar-thin">
+                <button 
+                  @click="selectedNoteTag = ''" 
+                  :class="selectedNoteTag === '' ? 'bg-morandi-clay text-white font-bold' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 hover:text-morandi-clay'"
+                  class="px-2 py-0.5 rounded text-[10px] whitespace-nowrap transition"
+                >
+                  全部
+                </button>
+                <button 
+                  v-for="tag in allNoteTags" 
+                  :key="tag" 
+                  @click="selectedNoteTag = tag"
+                  :class="selectedNoteTag === tag ? 'bg-morandi-clay text-white font-bold' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 hover:text-morandi-clay'"
+                  class="px-2 py-0.5 rounded text-[10px] whitespace-nowrap transition"
+                >
+                  #{{ tag }}
+                </button>
+              </div>
+            </div>
+
+            <!-- 笔记列表 -->
+            <div class="flex-1 overflow-y-auto divide-y divide-neutral-100 dark:divide-neutral-800/50">
+              <div 
+                v-for="note in filteredNotes" 
+                :key="note.id" 
+                @click="selectNote(note)"
+                :class="selectedNoteId === note.id ? 'bg-morandi-sand/40 dark:bg-morandi-darkBg/30 border-l-4 border-morandi-clay' : 'hover:bg-neutral-50 dark:hover:bg-morandi-darkBg/10'"
+                class="p-4 cursor-pointer text-left transition relative"
+              >
+                <div class="flex items-center justify-between mb-1.5">
+                  <h4 class="font-bold text-xs truncate text-neutral-800 dark:text-neutral-200 w-4/5">{{ note.title || '无标题笔记' }}</h4>
+                  <button @click.stop="deleteNote(note.id)" class="text-neutral-400 hover:text-red-500 transition">
+                    <i class="fa-regular fa-trash-can text-xs"></i>
+                  </button>
+                </div>
+                <p class="text-[11px] text-neutral-500 line-clamp-2 leading-relaxed mb-2">{{ getNotePlainTextSummary(note.content) }}</p>
+                <div class="flex items-center justify-between">
+                  <span class="text-[9px] px-1.5 py-0.5 bg-morandi-peach/10 text-morandi-clay font-bold rounded">
+                    #{{ note.tag }}
+                  </span>
+                  <span class="text-[9px] text-neutral-400">{{ note.update_time }}</span>
+                </div>
+              </div>
+              <div v-if="filteredNotes.length === 0" class="p-8 text-center text-xs text-neutral-400">
+                暂无符合条件的学习笔记
+              </div>
+            </div>
+          </aside>
+
+          <!-- 左右双栏 Markdown 编辑区 -->
+          <div v-if="currentNote" class="flex-1 flex flex-col bg-white dark:bg-morandi-darkCard transition-colors duration-300">
+            <!-- 编辑器顶栏选项 -->
+            <div class="px-6 py-3 border-b border-morandi-peach/10 flex items-center justify-between">
+              <div class="flex items-center space-x-4 flex-1">
+                <input 
+                  type="text" 
+                  v-model="currentNote.title" 
+                  placeholder="在这里输入笔记标题..." 
+                  class="bg-transparent font-bold text-base focus:border-b border-morandi-peach outline-none py-0.5 flex-1"
+                  @change="saveCurrentNoteState"
+                >
+                <div class="flex items-center space-x-1.5">
+                  <span class="text-xs text-neutral-400">标签:</span>
+                  <input 
+                    type="text" 
+                    v-model="currentNote.tag" 
+                    placeholder="分类标签" 
+                    class="bg-morandi-sand dark:bg-morandi-darkBg border border-morandi-peach/20 rounded px-2 py-0.5 text-xs outline-none focus:border-morandi-clay w-24 font-semibold"
+                    @change="saveCurrentNoteState"
+                  >
+                </div>
+              </div>
+              <div class="text-[11px] text-morandi-sage font-bold flex items-center bg-emerald-50 dark:bg-emerald-950/20 px-2 py-1 rounded ml-4">
+                <i class="fa-solid fa-cloud-arrow-up mr-1"></i>实时本地存储
+              </div>
+            </div>
+
+            <!-- 分栏区 -->
+            <div class="flex-1 flex overflow-hidden">
+              <!-- 左侧文本输入区 -->
+              <div class="w-1/2 border-r border-morandi-peach/10 flex flex-col">
+                <div class="bg-morandi-sand/30 dark:bg-morandi-darkBg/20 px-4 py-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-widest border-b border-morandi-peach/10 flex justify-between items-center">
+                  <span>Markdown 编辑源码</span>
+                  <span class="text-[9px] text-neutral-400">支持原生标准语法</span>
+                </div>
+                <textarea 
+                  v-model="currentNote.content" 
+                  @input="saveCurrentNoteState"
+                  placeholder="# 你的学习主题笔记
+
+请使用 Markdown 编写学习重点...
+可以使用列表、代码块、粗体等。该模块为自研核心存储，不影响 AI 问答检索。" 
+                  class="flex-1 p-4 font-mono text-xs leading-relaxed outline-none resize-none bg-transparent dark:bg-morandi-darkCard/10"
+                ></textarea>
+              </div>
+
+              <!-- 右侧渲染展示区 -->
+              <div class="w-1/2 flex flex-col bg-morandi-sand/10 dark:bg-[#1f1917]">
+                <div class="bg-morandi-sand/30 dark:bg-morandi-darkBg/20 px-4 py-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-widest border-b border-morandi-peach/10">
+                  实时排版预览
+                </div>
+                <div class="flex-1 p-6 overflow-y-auto markdown-body" v-html="renderMarkdown(currentNote.content)"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 未选中笔记状态 -->
+          <div v-else class="flex-1 flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-morandi-darkCard transition-colors duration-300">
+            <div class="w-16 h-16 rounded-full bg-morandi-sandDark dark:bg-morandi-darkBg flex items-center justify-center mb-4">
+              <i class="fa-solid fa-pen-nib text-2xl text-morandi-clay"></i>
+            </div>
+            <h4 class="font-bold text-neutral-700 dark:text-neutral-300">还没有选择学习笔记</h4>
+            <p class="text-xs text-neutral-500 mt-1 max-w-sm">请点击左侧列表中的笔记，或点击「新笔记」按钮开始创作您的专属课程笔记。</p>
+          </div>
+        </section>
+
+
+        <!-- 4. 团队协作与共享模块 (极简 RBAC 演示) -->
+        <section v-if="activeTab === 'team'" class="p-6 space-y-6 flex-1 flex flex-col">
+          <div class="flex items-center justify-between border-b border-morandi-peach/10 pb-4">
+            <div>
+              <h2 class="text-xl font-bold tracking-tight">小团队知识共享协作</h2>
+              <p class="text-xs text-neutral-500 mt-1">支持小组共享文件夹一键问答，实现小组内部快速文档查阅与知识库拉取。</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-semibold px-2 py-1 rounded bg-morandi-peach/10 text-morandi-clay">
+                我的角色：{{ currentUser.roleName }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 团队管理上部面板 -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 团队基本状态卡 -->
+            <div class="bg-white dark:bg-morandi-darkCard p-5 rounded-xl border border-morandi-peach/10 shadow-sm flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-xs font-bold text-morandi-clay">团队信息</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] bg-morandi-sage/20 text-morandi-sage font-bold">在线共享中</span>
+                </div>
+                <h3 class="font-bold text-lg text-neutral-800 dark:text-white">{{ team.teamName }}</h3>
+                <p class="text-xs text-neutral-500 mt-2">创建人：组长（{{ getCreatorName(team.creatorId) }}）</p>
+                <p class="text-xs text-neutral-500 mt-1">创建时间：{{ team.create_time }}</p>
+              </div>
+
+              <div class="mt-6 pt-4 border-t border-morandi-peach/5 flex items-center justify-between">
+                <span class="text-xs font-bold text-neutral-600 dark:text-neutral-400">共享状态:</span>
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs" :class="team.isShare ? 'text-morandi-sage font-bold' : 'text-neutral-400'">
+                    {{ team.isShare ? '共享已开' : '共享关闭' }}
+                  </span>
+                  <!-- 只有团队创建者(角色Id: 2)可以切换共享状态 -->
+                  <button 
+                    @click="toggleTeamSharing"
+                    :disabled="currentUser.roleId !== 2"
+                    :class="[
+                      team.isShare ? 'bg-morandi-sage text-white' : 'bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400',
+                      currentUser.roleId !== 2 ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+                    ]"
+                    class="px-3 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1"
+                  >
+                    <i class="fa-solid" :class="team.isShare ? 'fa-toggle-on' : 'fa-toggle-off'"></i>
+                    <span>{{ currentUser.roleId === 2 ? '切换' : '无权配置' }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 成员列表及控制区 -->
+            <div class="bg-white dark:bg-morandi-darkCard p-5 rounded-xl border border-morandi-peach/10 shadow-sm lg:col-span-2">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-sm text-neutral-800 dark:text-white flex items-center">
+                  <i class="fa-solid fa-users text-morandi-clay mr-2"></i>团队成员列表（{{ team.members.length }}人）
+                </h3>
+                <!-- 创建者邀请权限 -->
+                <button 
+                  v-if="currentUser.roleId === 2"
+                  @click="openInviteModal"
+                  class="px-2.5 py-1 bg-morandi-clay hover:bg-morandi-clayHover text-white text-xs font-semibold rounded-lg shadow-sm transition"
+                >
+                  <i class="fa-solid fa-user-plus mr-1"></i>邀请组员
+                </button>
+              </div>
+
+              <div class="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                <div 
+                  v-for="member in teamMembersInfo" 
+                  :key="member.id"
+                  class="flex items-center justify-between p-2.5 rounded-lg bg-morandi-sand/30 dark:bg-morandi-darkBg/20 border border-neutral-100 dark:border-neutral-800/30"
+                >
+                  <div class="flex items-center space-x-3">
+                    <img :src="member.avatar" class="w-8 h-8 rounded-full object-cover border" alt="Member Avatar">
+                    <div>
+                      <span class="text-xs font-bold text-neutral-800 dark:text-neutral-200">{{ member.username }}</span>
+                      <span v-if="member.id === team.creatorId" class="ml-2 text-[9px] px-1.5 py-0.5 bg-morandi-clay text-white rounded-full font-bold">组长</span>
+                      <span v-else class="ml-2 text-[9px] px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-500 rounded-full">组员</span>
+                    </div>
+                  </div>
+                  <!-- 删除成员权限（仅组长有权，且不能踢掉自己） -->
+                  <button 
+                    v-if="currentUser.roleId === 2 && member.id !== team.creatorId"
+                    @click="removeTeamMember(member.id)"
+                    class="p-1 text-neutral-400 hover:text-red-500 transition text-xs"
+                    title="移除组员"
+                  >
+                    <i class="fa-solid fa-user-minus"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 团队文件夹共享共享范围说明 -->
+          <div class="bg-white dark:bg-morandi-darkCard rounded-xl p-6 border border-morandi-peach/10">
+            <h3 class="font-bold text-sm text-neutral-800 dark:text-white mb-3">📁 共享知识库整体管控</h3>
+            <p class="text-xs text-neutral-500 leading-relaxed mb-4">
+              协作规则：组长开启「共享开关」后，全体组员均可在「AI 智能问答」板块中勾选并关联组长持有的个人文件夹作为提问源。
+              组员对共享知识库**仅拥有在线预览和提问问答权限**，无法上传或删除文件夹中的资料，严格保证学术资产所有权。
+            </p>
+
+            <!-- 组长已共享的文件夹列表 -->
+            <div class="border border-neutral-100 dark:border-neutral-800 rounded-xl overflow-hidden">
+              <div class="bg-morandi-sand/40 dark:bg-morandi-darkBg/30 p-3 text-xs font-bold text-neutral-500 flex justify-between">
+                <span>共享的知识库名称</span>
+                <span>包含文件数量</span>
+              </div>
+              <div v-if="teamSharedCategories.length > 0" class="divide-y divide-neutral-100 dark:divide-neutral-800/50">
+                <div v-for="cat in teamSharedCategories" :key="'share-cat-' + cat.id" class="p-3.5 flex justify-between items-center text-xs">
+                  <span class="font-bold text-morandi-clay flex items-center">
+                    <i class="fa-solid fa-share-nodes mr-2"></i>{{ cat.categoryName }}
+                  </span>
+                  <span class="text-neutral-400 font-semibold">{{ getFilesCountByCategory(cat.id) }} 份已索引文档</span>
+                </div>
+              </div>
+              <div v-else class="p-6 text-center text-xs text-neutral-400">
+                当前尚无共享的知识文件夹
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 5. 个人中心与配置模块 (全自研) -->
+        <section v-if="activeTab === 'profile'" class="p-6 space-y-6 max-w-4xl mx-auto w-full">
+          <div class="bg-white dark:bg-morandi-darkCard rounded-xl p-6 border border-morandi-peach/10 shadow-sm transition-colors duration-300">
+            <h2 class="text-lg font-bold text-neutral-800 dark:text-white mb-6 border-b border-morandi-peach/10 pb-3 flex items-center">
+              <i class="fa-solid fa-address-card mr-2 text-morandi-clay"></i>个人账户设置
+            </h2>
+            
+            <div class="flex flex-col md:flex-row items-center md:space-x-8 space-y-4 md:space-y-0 mb-6">
+              <!-- 头像及更换模拟 -->
+              <div class="relative group cursor-pointer" @click="triggerAvatarSelect">
+                <img :src="currentUser.avatar" class="w-24 h-24 rounded-full object-cover border-4 border-morandi-peach/50 shadow-md transition group-hover:opacity-85" alt="Avatar">
+                <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition text-xs">
+                  <i class="fa-solid fa-camera mr-1"></i>更换头像
+                </div>
+              </div>
+              
+              <div class="space-y-1.5 text-center md:text-left flex-1">
+                <h3 class="font-bold text-base text-neutral-800 dark:text-white">{{ currentUser.username }}</h3>
+                <p class="text-xs text-neutral-500">角色身份：<span class="text-morandi-clay font-bold">{{ currentUser.roleName }}</span></p>
+                <p class="text-[11px] text-neutral-400">系统唯一标识: {{ currentUser.id }}</p>
+              </div>
+            </div>
+
+            <!-- 资料表单 -->
+            <form @submit.prevent="updateUserInfo" class="space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-neutral-500 mb-1">用户名</label>
+                  <input 
+                    type="text" 
+                    v-model="currentUser.username" 
+                    disabled 
+                    class="w-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-2 text-xs outline-none cursor-not-allowed"
+                  >
+                  <span class="text-[9px] text-neutral-400 mt-1 block">用户名作为系统登录唯一凭证，不支持修改。</span>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-neutral-500 mb-1">系统主题设定</label>
+                  <select 
+                    v-model="currentTheme" 
+                    @change="setTheme(currentTheme)"
+                    class="w-full bg-morandi-sand dark:bg-morandi-darkBg border border-morandi-peach/20 focus:border-morandi-clay rounded-lg px-3 py-2 text-xs outline-none"
+                  >
+                    <option value="light">白天暖色模式</option>
+                    <option value="dark">暗夜陶土模式</option>
+                    <option value="system">跟随系统偏好</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="border-t border-morandi-peach/5 pt-4 mt-4">
+                <h4 class="font-bold text-xs text-neutral-800 dark:text-neutral-200 mb-3">安全密码重置</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-neutral-500 mb-1">原登录密码</label>
+                    <input 
+                      type="password" 
+                      v-model="passwordForm.oldPassword" 
+                      placeholder="请输入原先的安全密码" 
+                      class="w-full bg-morandi-sand dark:bg-morandi-darkBg border border-morandi-peach/20 focus:border-morandi-clay rounded-lg px-3 py-2 text-xs outline-none"
+                    >
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-neutral-500 mb-1">新登录密码</label>
+                    <input 
+                      type="password" 
+                      v-model="passwordForm.newPassword" 
+                      placeholder="请输入新的安全密码" 
+                      class="w-full bg-morandi-sand dark:bg-morandi-darkBg border border-morandi-peach/20 focus:border-morandi-clay rounded-lg px-3 py-2 text-xs outline-none"
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-4 flex justify-end">
+                <button type="submit" class="px-5 py-2.5 bg-morandi-clay hover:bg-morandi-clayHover text-white rounded-lg shadow text-xs font-semibold transition">
+                  保存账户修改
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- 弹窗：创建文件夹 -->
+    <div v-if="modals.createFolder" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-morandi-darkCard w-full max-w-md rounded-2xl shadow-2xl border border-morandi-peach/20 p-6 space-y-4">
+        <h3 class="font-bold text-base text-neutral-800 dark:text-white">创建新知识库文件夹</h3>
+        <p class="text-xs text-neutral-500">文件夹将用于归类管理上传的复习提纲、研究文献、项目资料等。</p>
+        <div>
+          <label class="block text-xs font-bold text-neutral-500 mb-1.5">文件夹（知识库）名称</label>
+          <input 
+            type="text" 
+            v-model="newCategoryName" 
+            placeholder="例如：计算机组成原理、历史文献研究" 
+            class="w-full bg-morandi-sand dark:bg-morandi-darkBg border border-morandi-peach/25 rounded-lg px-3 py-2 text-sm outline-none focus:border-morandi-clay focus:ring-1 focus:ring-morandi-clay transition"
+          >
+        </div>
+        <div class="flex items-center justify-end space-x-2 pt-2">
+          <button @click="modals.createFolder = false" class="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-500 text-xs font-semibold rounded-lg hover:bg-neutral-200 transition">取消</button>
+          <button @click="submitCreateFolder" class="px-4 py-2 bg-morandi-clay hover:bg-morandi-clayHover text-white text-xs font-semibold rounded-lg transition shadow-md">一键创建</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗：重命名文件夹 -->
+    <div v-if="modals.renameFolder" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-morandi-darkCard w-full max-w-md rounded-2xl shadow-2xl border border-morandi-peach/20 p-6 space-y-4">
+        <h3 class="font-bold text-base text-neutral-800 dark:text-white">重命名知识库分类</h3>
+        <div>
+          <label class="block text-xs font-bold text-neutral-500 mb-1.5">新的文件夹名称</label>
+          <input 
+            type="text" 
+            v-model="renameCategoryName" 
+            class="w-full bg-morandi-sand dark:bg-morandi-darkBg border border-morandi-peach/25 rounded-lg px-3 py-2 text-sm outline-none focus:border-morandi-clay focus:ring-1 focus:ring-morandi-clay transition"
+          >
+        </div>
+        <div class="flex items-center justify-end space-x-2 pt-2">
+          <button @click="modals.renameFolder = false" class="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-500 text-xs font-semibold rounded-lg hover:bg-neutral-200 transition">取消</button>
+          <button @click="submitRenameFolder" class="px-4 py-2 bg-morandi-clay hover:bg-morandi-clayHover text-white text-xs font-semibold rounded-lg transition shadow-md">确认修改</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗：文件在线预览 (高保真内容展示) -->
+    <div v-if="modals.filePreview" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-morandi-darkCard w-full max-w-3xl rounded-2xl shadow-2xl border border-morandi-peach/20 flex flex-col max-h-[85vh] overflow-hidden">
+        <!-- 头部 -->
+        <div class="px-6 py-4 border-b border-morandi-peach/10 flex items-center justify-between bg-morandi-sand/30 dark:bg-morandi-darkBg/20">
+          <div class="flex items-center space-x-2.5">
+            <i v-if="previewingFile.fileType === 'pdf'" class="fa-solid fa-file-pdf text-red-500 text-xl"></i>
+            <i v-else-if="['doc','docx'].includes(previewingFile.fileType)" class="fa-solid fa-file-word text-blue-500 text-xl"></i>
+            <i v-else class="fa-solid fa-file-lines text-morandi-clay text-xl"></i>
+            <h3 class="font-bold text-base text-neutral-800 dark:text-white truncate max-w-lg">{{ previewingFile.fileName }}</h3>
+          </div>
+          <button @click="modals.filePreview = false" class="p-1 text-neutral-400 hover:text-morandi-clay transition text-lg">
+            <i class="fa-solid fa-circle-xmark"></i>
+          </button>
+        </div>
+        <!-- 文档高仿真渲染展示区 -->
+        <div class="flex-1 p-8 overflow-y-auto bg-morandi-sand/10 dark:bg-[#1f1917]/50">
+          <div class="max-w-2xl mx-auto bg-white dark:bg-morandi-darkCard p-8 rounded-xl border border-morandi-peach/5 shadow-sm text-sm leading-relaxed space-y-4">
+            <div class="text-xs text-neutral-400 border-b border-dashed border-neutral-100 dark:border-neutral-800 pb-2 mb-4">
+              在线高标预览模式 · 格式: <span class="uppercase font-bold text-morandi-clay">{{ previewingFile.fileType }}</span> · 创建时间: {{ previewingFile.create_time }}
+            </div>
+            
+            <!-- 根据格式渲染不同精美富文本内容 -->
+            <div v-if="previewingFile.fileType === 'pdf'" class="space-y-4">
+              <h2 class="text-xl font-bold text-neutral-800 dark:text-neutral-100">PDF电子书籍：多核处理器体系架构深度解析</h2>
+              <p class="text-neutral-600 dark:text-neutral-300">
+                本章重点阐述多核芯片（CMP）的设计范式及高速缓存一致性协议。随着摩尔定律趋缓，提高单核时钟频率已不具备功耗性价比。取而代之的是多核处理器的并发架构设计。
+              </p>
+              <div class="p-3 bg-red-50/50 dark:bg-red-950/20 border-l-4 border-red-500 rounded text-xs text-neutral-600 dark:text-neutral-300 font-mono">
+                [PDF 页码索引 124 - Cache Coherency Protocol]
+                MESI（Modified, Exclusive, Shared, Invalid）协议通过监听总线维持缓存的一致。
+              </div>
+              <p class="text-neutral-600 dark:text-neutral-300">
+                在大规模核心连接中，基于总线的监听（Snooping）机制面临带宽压力，因此常采用基于目录（Directory-based）的分布式一致性控制体系。
+              </p>
+            </div>
+
+            <div v-else-if="['doc','docx'].includes(previewingFile.fileType)" class="space-y-4">
+              <h2 class="text-xl font-bold text-neutral-800 dark:text-neutral-100">期末整理Word文档：唐宋诗词流变研究纲要</h2>
+              <p class="text-neutral-600 dark:text-neutral-300">
+                唐诗到宋词的审美流变，本质上是中近古文学体裁从“言志”到“缘情歌唱”的市民化世俗演变过程。
+              </p>
+              <h3 class="font-bold text-base text-neutral-800 dark:text-neutral-200 mt-4">一、中晚唐都市萌芽与慢词先声</h3>
+              <p class="text-neutral-600 dark:text-neutral-300">
+                由于里坊制走向全面崩溃，晚唐五代的坊市逐渐融合，产生了丰富的都市夜生活与瓦肆娱乐需求，从而为依托燕乐演出的词体提供了蓬勃的外部生存土壤。
+              </p>
+            </div>
+
+            <div v-else class="space-y-4">
+              <h2 class="text-xl font-bold text-neutral-800 dark:text-neutral-100">自研MD文档：Vue 3 响应式设计精髓笔记</h2>
+              <pre class="bg-neutral-100 dark:bg-neutral-800 p-3 rounded text-xs font-mono">
+const observed = new Proxy(target, {
+  get(target, key, receiver) {
+    track(target, key); // 依赖收集
+    return Reflect.get(target, key, receiver);
+  },
+  set(target, key, value, receiver) {
+    const result = Reflect.set(target, key, value, receiver);
+    trigger(target, key); // 依赖触发并更新页面
+    return result;
+  }
+});</pre>
+              <p class="text-neutral-600 dark:text-neutral-300">
+                Vue 3 彻底重构了底层，从原来的 ES5 Object.defineProperty 进化为代理 Proxy，避免了嵌套对象检测遗漏问题并极大地释放了性能。
+              </p>
+            </div>
+
+          </div>
+        </div>
+        <div class="px-6 py-3 border-t border-morandi-peach/10 bg-morandi-sand/30 dark:bg-morandi-darkBg/20 flex justify-end">
+          <button @click="modals.filePreview = false" class="px-4 py-2 bg-morandi-clay text-white text-xs font-bold rounded-lg hover:bg-morandi-clayHover transition">
+            关闭预览
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗：重命名文件 -->
+    <div v-if="modals.renameFile" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-morandi-darkCard w-full max-w-md rounded-2xl shadow-2xl border border-morandi-peach/20 p-6 space-y-4">
+        <h3 class="font-bold text-base text-neutral-800 dark:text-white">修改学习文档名称</h3>
+        <div>
+          <label class="block text-xs font-bold text-neutral-500 mb-1.5">输入新文件名（保留格式后缀）</label>
+          <input 
+            type="text" 
+            v-model="renameFileNameInput" 
+            class="w-full bg-morandi-sand dark:bg-morandi-darkBg border border-morandi-peach/25 rounded-lg px-3 py-2 text-sm outline-none focus:border-morandi-clay focus:ring-1 focus:ring-morandi-clay transition"
+          >
+        </div>
+        <div class="flex items-center justify-end space-x-2 pt-2">
+          <button @click="modals.renameFile = false" class="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-500 text-xs font-semibold rounded-lg hover:bg-neutral-200 transition">取消</button>
+          <button @click="submitRenameFile" class="px-4 py-2 bg-morandi-clay hover:bg-morandi-clayHover text-white text-xs font-semibold rounded-lg transition shadow-md">保存重命名</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗：团队邀请组员 -->
+    <div v-if="modals.inviteMember" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-morandi-darkCard w-full max-w-md rounded-2xl shadow-2xl border border-morandi-peach/20 p-6 space-y-4">
+        <h3 class="font-bold text-base text-neutral-800 dark:text-white">邀请小组成员加入团队</h3>
+        <p class="text-xs text-neutral-500">输入对方在学生AI工作台系统注册的用户名，即可将其一键拉入学习协作小组。</p>
+        <div>
+          <label class="block text-xs font-bold text-neutral-500 mb-1.5">受邀用户名称</label>
+          <input 
+            type="text" 
+            v-model="inviteUserNameInput" 
+            placeholder="例如：李同学、王学长" 
+            class="w-full bg-morandi-sand dark:bg-morandi-darkBg border border-morandi-peach/25 rounded-lg px-3 py-2 text-sm outline-none focus:border-morandi-clay focus:ring-1 focus:ring-morandi-clay transition"
+          >
+        </div>
+        <div class="flex items-center justify-end space-x-2 pt-2">
+          <button @click="modals.inviteMember = false" class="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-500 text-xs font-semibold rounded-lg hover:bg-neutral-200 transition">取消</button>
+          <button @click="submitInviteMember" class="px-4 py-2 bg-morandi-clay hover:bg-morandi-clayHover text-white text-xs font-semibold rounded-lg transition shadow-md">发出正式邀请</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 系统通知 Toast 全自研组件 -->
+    <transition-group 
+      tag="div" 
+      name="toast-list" 
+      class="fixed top-4 right-4 z-50 space-y-2 pointer-events-none"
+    >
+      <div 
+        v-for="toast in toasts" 
+        :key="toast.id" 
+        :class="toast.type === 'success' ? 'bg-morandi-sage border-emerald-600' : 'bg-morandi-clay border-morandi-clayHover'"
+        class="flex items-center space-x-3 text-white px-4 py-3 rounded-xl shadow-2xl border-l-4 pointer-events-auto min-w-[280px] max-w-sm transition duration-300 transform"
+      >
+        <i v-if="toast.type === 'success'" class="fa-solid fa-circle-check text-base"></i>
+        <i v-else class="fa-solid fa-circle-exclamation text-base"></i>
+        <span class="text-xs font-semibold leading-relaxed">{{ toast.msg }}</span>
+      </div>
+    </transition-group>
+
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+    createApp({
+      setup() {
+        // --- 系统基础环境参数 ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'stu-ai-workbench';
+        const activeTab = ref('knowledge'); // 默认进入我的知识库
+        const currentTheme = ref('light'); // 'light' | 'dark' | 'system'
+        const showThemeDropdown = ref(false);
+
+        // Toast 状态
+        const toasts = ref([]);
+        const showToast = (msg, type = 'success') => {
+          const id = Date.now();
+          toasts.value.push({ id, msg, type });
+          setTimeout(() => {
+            toasts.value = toasts.value.filter(t => t.id !== id);
+          }, 3500);
+        };
+
+        // --- 1. 用户实体与极简 RBAC 体系（纯自研模拟） ---
+        const currentUser = ref({
+          id: 'user_stu_1024',
+          username: '王同学',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          roleId: 1, // 1: 普通用户, 2: 团队创建者
+          roleName: '普通用户'
+        });
+
+        const usersDatabase = [
+          { id: 'user_stu_1024', username: '王同学', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', roleId: 1, roleName: '普通用户' },
+          { id: 'user_stu_9999', username: '陈学长（组长）', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80', roleId: 2, roleName: '团队创建者' }
+        ];
+
+        // 切换角色
+        const switchRole = (roleId) => {
+          const found = usersDatabase.find(u => u.roleId === roleId);
+          if (found) {
+            currentUser.value = { ...found };
+            showToast(`成功切换演示角色为: [${found.roleName}]`);
+          }
+        };
+
+        // 个人中心密码修改模拟
+        const passwordForm = ref({
+          oldPassword: '',
+          newPassword: ''
+        });
+        const updateUserInfo = () => {
+          showToast('个人中心资料及本地偏好配置已同步成功！', 'success');
+          passwordForm.value.oldPassword = '';
+          passwordForm.value.newPassword = '';
+        };
+
+        // 模拟更换头像
+        const triggerAvatarSelect = () => {
+          const avatars = [
+            'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+          ];
+          const next = avatars[Math.floor(Math.random() * avatars.length)];
+          currentUser.value.avatar = next;
+          // 同时更新数据库缓存
+          usersDatabase.forEach(u => {
+            if (u.id === currentUser.value.id) {
+              u.avatar = next;
+            }
+          });
+          showToast('系统已检测并替换新上传的头像缩略图。');
+        };
+
+        // --- 2. 知识库分类及文件实体（自研存储 + Dify联动模拟） ---
+        const categories = ref([
+          { id: 'cat_01', categoryName: '计算机网络期末复习', user_id: 'user_stu_1024', create_time: '2026-05-10' },
+          { id: 'cat_02', categoryName: '学术论文参考资料', user_id: 'user_stu_1024', create_time: '2026-05-12' },
+          { id: 'cat_03', categoryName: 'Vue3框架与架构体系', user_id: 'user_stu_1024', create_time: '2026-05-15' }
+        ]);
+
+        const files = ref([
+          { id: 'file_001', fileName: 'TCP三路握手与四次挥手深度图解.pdf', fileType: 'pdf', filePath: '/docs/tcp.pdf', category_id: 'cat_01', user_id: 'user_stu_1024', is_sync: true, create_time: '2026-05-11' },
+          { id: 'file_002', fileName: '应用层常见协议原理速记.docx', fileType: 'docx', filePath: '/docs/app.docx', category_id: 'cat_01', user_id: 'user_stu_1024', is_sync: true, create_time: '2026-05-11' },
+          { id: 'file_003', fileName: '学术引用：多传感器融合架构.docx', fileType: 'docx', filePath: '/docs/sensors.docx', category_id: 'cat_02', user_id: 'user_stu_1024', is_sync: false, create_time: '2026-05-13' },
+          { id: 'file_004', fileName: 'Vue3 官方参考手册完全版.md', fileType: 'md', filePath: '/docs/vue3.md', category_id: 'cat_03', user_id: 'user_stu_1024', is_sync: true, create_time: '2026-05-16' }
+        ]);
+
+        const selectedCategoryId = ref('cat_01'); // 默认选中计算机网络
+        const isSyncingCategory = ref(null);      // 记录当前哪一个分类正在触发Dify同步
+
+        const selectedCategory = computed(() => {
+          return categories.value.find(c => c.id === selectedCategoryId.value);
+        });
+
+        const currentCategoryFiles = computed(() => {
+          return files.value.filter(f => f.category_id === selectedCategoryId.value);
+        });
+
+        const selectCategory = (id) => {
+          selectedCategoryId.value = id;
+        };
+
+        const getFilesCountByCategory = (catId) => {
+          return files.value.filter(f => f.category_id === catId).length;
+        };
+
+        const getCategorySyncStatus = (catId) => {
+          const catFiles = files.value.filter(f => f.category_id === catId);
+          if (catFiles.length === 0) return 'none';
+          const syncedCount = catFiles.filter(f => f.is_sync).length;
+          if (syncedCount === catFiles.length) return 'all';
+          if (syncedCount > 0) return 'partial';
+          return 'none';
+        };
+
+        // --- 知识库文件夹 CRUD 模拟 ---
+        const modals = ref({
+          createFolder: false,
+          renameFolder: false,
+          filePreview: false,
+          renameFile: false,
+          inviteMember: false
+        });
+
+        const newCategoryName = ref('');
+        const openCreateFolderModal = () => {
+          newCategoryName.value = '';
+          modals.value.createFolder = true;
+        };
+        const submitCreateFolder = () => {
+          if (!newCategoryName.value.trim()) {
+            showToast('文件夹名字不能为空！', 'error');
+            return;
+          }
+          const id = 'cat_' + Date.now();
+          categories.value.push({
+            id,
+            categoryName: newCategoryName.value.trim(),
+            user_id: currentUser.value.id,
+            create_time: new Date().toISOString().split('T')[0]
+          });
+          selectedCategoryId.value = id;
+          modals.value.createFolder = false;
+          showToast(`成功创建 [${newCategoryName.value}] 知识库！`);
+        };
+
+        const activeRenameFolderObj = ref(null);
+        const renameCategoryName = ref('');
+        const openRenameFolderModal = (category) => {
+          activeRenameFolderObj.value = category;
+          renameCategoryName.value = category.categoryName;
+          modals.value.renameFolder = true;
+        };
+        const submitRenameFolder = () => {
+          if (!renameCategoryName.value.trim()) {
+            showToast('文件夹名字不能为空！', 'error');
+            return;
+          }
+          const found = categories.value.find(c => c.id === activeRenameFolderObj.value.id);
+          if (found) {
+            found.categoryName = renameCategoryName.value.trim();
+            showToast('文件夹更名成功！');
+          }
+          modals.value.renameFolder = false;
+        };
+
+        const deleteFolder = (catId) => {
+          categories.value = categories.value.filter(c => c.id !== catId);
+          files.value = files.value.filter(f => f.category_id !== catId); // 级联删除文档
+          if (selectedCategoryId.value === catId) {
+            selectedCategoryId.value = categories.value.length > 0 ? categories.value[0].id : null;
+          }
+          showToast('文件夹及关联文件均已彻底清除。');
+        };
+
+        // --- 知识文档 CRUD 与 Dify API 模拟 ---
+        const handleFileUpload = (event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          // 提取后缀
+          const extension = file.name.split('.').pop().toLowerCase();
+          if (!['pdf', 'doc', 'docx', 'md'].includes(extension)) {
+            showToast('仅支持 PDF, Word(doc/docx), Markdown(md) 学习文档格式', 'error');
+            return;
+          }
+
+          // 插入本地存储库状态
+          files.value.push({
+            id: 'file_' + Date.now(),
+            fileName: file.name,
+            fileType: extension,
+            filePath: '#',
+            category_id: selectedCategoryId.value,
+            user_id: currentUser.value.id,
+            is_sync: false, // 默认新上传为未同步状态
+            create_time: new Date().toISOString().split('T')[0]
+          });
+
+          showToast('文档已上传至本地存储。请点击同步，建立 AI 向量映射。');
+        };
+
+        // 模拟文件预览
+        const previewingFile = ref(null);
+        const previewFile = (file) => {
+          previewingFile.value = file;
+          modals.value.filePreview = true;
+        };
+
+        // 文件更名
+        const activeRenameFileObj = ref(null);
+        const renameFileNameInput = ref('');
+        const renameFile = (file) => {
+          activeRenameFileObj.value = file;
+          renameFileNameInput.value = file.fileName;
+          modals.value.renameFile = true;
+        };
+        const submitRenameFile = () => {
+          if (!renameFileNameInput.value.trim()) {
+            showToast('文件名不能为空！', 'error');
+            return;
+          }
+          const found = files.value.find(f => f.id === activeRenameFileObj.value.id);
+          if (found) {
+            found.fileName = renameFileNameInput.value.trim();
+            showToast('文件名修改成功！');
+          }
+          modals.value.renameFile = false;
+        };
+
+        const deleteFile = (fileId) => {
+          files.value = files.value.filter(f => f.id !== fileId);
+          showToast('文件已彻底移出当前知识分类。');
+        };
+
+        // 同步到 Dify API 模拟 (Dify 工作流联动)
+        const syncDify = (catId) => {
+          isSyncingCategory.value = catId;
+          const foundCat = categories.value.find(c => c.id === catId);
+          showToast(`🚀 [${foundCat.categoryName}] 已启动 Dify 文档分段与解析机制...`);
+
+          // 模拟 Dify 文档拆分、抽取向量、入库过程需要 2.5 秒
+          setTimeout(() => {
+            files.value.forEach(f => {
+              if (f.category_id === catId) {
+                f.is_sync = true;
+              }
+            });
+            isSyncingCategory.value = null;
+            showToast(`✅ [${foundCat.categoryName}] 已与 Dify 达成向量互联，可发起智能提问！`);
+          }, 2500);
+        };
+
+
+        // --- 3. AI 智能问答联动（自研保存记录 + Dify 联合回复模拟） ---
+        const selectedChatCategories = ref(['cat_01']); // 问答默认勾选计算机网络
+        const inputQuestion = ref('');
+        const isAiTyping = ref(false);
+
+        const chatHistory = ref([
+          {
+            id: 'chat_01',
+            question: '计算机网络中，为什么TCP挥手需要四次，而握手只需要三次？',
+            answer: `关于 TCP 连接建立（三次握手）与释放（四次挥手）的核心差异，基于您关联的 **【计算机网络期末复习】** 知识库，Dify 进行如下深度复盘：
+
+### 1. 三次握手的本质
+握手是为了**双向同步（SYN）初始序列号（ISN）**并确认双方的收发能力。
+* 第一次：客户端发 SYN，服务端确认客户端**发送**能力正常。
+* 第二次：服务端回 SYN+ACK，客户端确认服务端**收发**能力均正常。
+* 第三次：客户端发 ACK，服务端确认客户端**接收**能力正常。
+因为在建立连接时，服务端的 ACK（应答）和 SYN（同步包）可以**合并在同一个报文中**一起发送，所以三次即可。
+
+### 2. 四次挥手的关键原因
+挥手是为了断开已建立的**双向全双工通道**。关键在于：**TCP 的断开是属于半关闭状态。**
+* **第一次：** 客户端发送 FIN 包，表示客户端已经没有数据要发送了，但它仍然能够接收来自服务端的后续数据。
+* **第二次：** 服务端接收并反馈 ACK，同意断开客户端到服务端的流，但此时服务端若还有未传输完毕的数据，仍会继续传输。此时处于**半关闭（Half-Close）**状态。
+* **第三次：** 服务端数据发送完毕后，向客户端发送 FIN 包，申请完全关闭双向信道。
+* **第四次：** 客户端回 ACK 确认，经过 2MSL 等待期，完全释放。
+
+**总结结论：**
+因为建立连接时，SYN 和 ACK 可以安全合二为一；而在断开连接时，服务端的“ACK 应答”和“FIN 结束请求”由于尚有残留数据，**无法保证在同一个时刻发生**，因而挥手必须拆分为四次进行。`,
+            category_ids: ['cat_01'],
+            create_time: '2026-05-18 10:30:15'
+          }
+        ]);
+
+        const getCategoryNameById = (catId) => {
+          const found = categories.value.find(c => c.id === catId);
+          if (found) return found.categoryName;
+          const foundShared = teamSharedCategories.value.find(c => c.id === catId);
+          return foundShared ? `${foundShared.categoryName} (团队共享)` : '未知分类';
+        };
+
+        const preSetQuestion = (text) => {
+          inputQuestion.value = text;
+        };
+
+        // 核心 AI 提问 Dify API 转发机制
+        const sendQuestion = () => {
+          if (!inputQuestion.value.trim() || isAiTyping.value) return;
+          if (selectedChatCategories.value.length === 0) {
+            showToast('请在左边栏至少勾选一个 Dify 关联知识库！', 'error');
+            return;
+          }
+
+          const questionText = inputQuestion.value;
+          inputQuestion.value = '';
+          isAiTyping.value = true;
+
+          // 1. 压入用户提问
+          const currentChatId = 'chat_' + Date.now();
+          const targetCategories = [...selectedChatCategories.value];
+
+          // 2. 滚动到底部
+          scrollToBottom();
+
+          // 3. 模拟 Dify 接口转发与处理
+          setTimeout(() => {
+            let intelligentReply = '';
+
+            // 依据选中的知识分类制定具有高度仿真的匹配问答结果
+            if (targetCategories.includes('cat_01')) {
+              intelligentReply += `根据您勾选的 **【计算机网络期末复习】** 核心文档，已为您梳理以下考点：\n\n`;
+              intelligentReply += `* **OSI七层参考模型：** 物理层、数据链路层、网络层、传输层、会话层、表示层、应用层。\n`;
+              intelligentReply += `* **TCP与UDP对比：** TCP是面向连接、可靠、基于字节流的；而UDP是无连接、不可靠、面向报文且极轻量级的协议。\n`;
+              intelligentReply += `* **拥塞控制算法：** 慢开始、拥塞避免、快重传、快恢复四个阶段，维持链路不发生崩溃。\n\n`;
+            } 
+            if (targetCategories.includes('cat_03')) {
+              intelligentReply += `结合 **【Vue3框架与架构体系】** 关联知识，Vue 3 的生命周期与响应式设计大有不同：\n\n`;
+              intelligentReply += `1. **组合式API生命周期钩子：** 引入了 \`onMounted\`, \`onUpdated\`, \`onUnmounted\` 等，替代了原有的 Options API 创建钩子。\n`;
+              intelligentReply += `2. **双向绑定重塑：** 采用更现代的 ES6 \`Proxy\` 建立侦听，在深度对象劫持性能上相较 \`Object.defineProperty\` 获得阶梯级飞跃。\n\n`;
+            }
+            if (intelligentReply === '') {
+              intelligentReply = `您当前提问：**“${questionText}”**。根据所选取的本地/共享索引文件，Dify 未找到高密合度的知识切片，已启用系统大语言模型预训练背景为您作答：\n\n建议您在 **「我的知识库」** 板块中上传对应的复习讲义 PDF/Word 资料并点击「同步 Dify」，以便生成精准的文献切片和解答。`;
+            } else {
+              intelligentReply += `*以上内容已通过 Dify 向量相似度算子（Similarity Score > 0.85）进行精确配比。*`;
+            }
+
+            chatHistory.value.push({
+              id: currentChatId,
+              question: questionText,
+              answer: intelligentReply,
+              category_ids: targetCategories,
+              create_time: new Date().toLocaleString()
+            });
+
+            isAiTyping.value = false;
+            scrollToBottom();
+            showToast('已成功通过 Dify API 智能解析完毕！');
+          }, 1800);
+        };
+
+        const deleteChatEntry = (id) => {
+          chatHistory.value = chatHistory.value.filter(c => c.id !== id);
+          showToast('已从自研记录数据库中清除该条问答。');
+        };
+
+        const clearChatHistory = () => {
+          chatHistory.value = [];
+          showToast('历史问答记录已清空。');
+        };
+
+        const scrollToBottom = () => {
+          nextTick(() => {
+            const container = document.getElementById('chat-messages-container');
+            if (container) {
+              container.scrollTop = container.scrollHeight;
+            }
+          });
+        };
+
+
+        // --- 4. 学习笔记模块（全自研，双栏编辑排版） ---
+        const notes = ref([
+          {
+            id: 'note_01',
+            title: '计算机网络核心协议总结',
+            content: `# 计算机网络核心协议（传输层与应用层）
+
+## 1. 传输层
+* **TCP协议（传输控制协议）**
+  - 特性：面向连接、全双工可靠、拥塞控制。
+  - 核心：握手/挥手、重传机制。
+* **UDP协议（用户数据报协议）**
+  - 特性：无连接、尽力而为、实时性高、无重传机制。
+
+## 2. 应用层
+* **HTTP/HTTPS**（超文本传输）
+* **DNS**（域名解析系统）
+* **FTP**（文件传输协议）
+
+> 提醒：期末重点在 TCP 流量控制与滑动窗口计算。`,
+            tag: '复习整理',
+            user_id: 'user_stu_1024',
+            create_time: '2026-05-15',
+            update_time: '2026-05-18'
+          },
+          {
+            id: 'note_02',
+            title: '学术研究：多传感器融合架构大纲',
+            content: `# 多传感器融合体系研究记录
+
+* **基本框架**：时空对准 -> 关联对准 -> 状态估计
+* **传感器类型**：毫米波雷达、激光雷达(LiDAR)、摄像头
+* **算法选择**：扩展卡尔曼滤波(EKF) 或 因子图优化(Factor Graph)`,
+            tag: '毕业设计',
+            user_id: 'user_stu_1024',
+            create_time: '2026-05-16',
+            update_time: '2026-05-17'
+          }
+        ]);
+
+        const selectedNoteId = ref('note_01');
+        const noteSearchQuery = ref('');
+        const selectedNoteTag = ref('');
+
+        const currentNote = computed(() => {
+          return notes.value.find(n => n.id === selectedNoteId.value);
+        });
+
+        const allNoteTags = computed(() => {
+          const tags = notes.value.map(n => n.tag).filter(Boolean);
+          return [...new Set(tags)];
+        });
+
+        const filteredNotes = computed(() => {
+          let results = notes.value;
+          if (selectedNoteTag.value) {
+            results = results.filter(n => n.tag === selectedNoteTag.value);
+          }
+          if (noteSearchQuery.value.trim()) {
+            const query = noteSearchQuery.value.toLowerCase();
+            results = results.filter(n => 
+              n.title.toLowerCase().includes(query) || 
+              n.content.toLowerCase().includes(query)
+            );
+          }
+          return results;
+        });
+
+        const selectNote = (note) => {
+          selectedNoteId.value = note.id;
+        };
+
+        const createNewNote = () => {
+          const id = 'note_' + Date.now();
+          const newNoteObj = {
+            id,
+            title: '未命名学习笔记',
+            content: '# 新笔记标题\n\n请在此处输入您的学习整理记录。',
+            tag: '待分类',
+            user_id: currentUser.value.id,
+            create_time: new Date().toISOString().split('T')[0],
+            update_time: new Date().toISOString().split('T')[0]
+          };
+          notes.value.unshift(newNoteObj);
+          selectedNoteId.value = id;
+          showToast('已新建空白本地课程笔记。');
+        };
+
+        const deleteNote = (noteId) => {
+          notes.value = notes.value.filter(n => n.id !== noteId);
+          if (selectedNoteId.value === noteId) {
+            selectedNoteId.value = notes.value.length > 0 ? notes.value[0].id : null;
+          }
+          showToast('笔记已被彻底粉碎。');
+        };
+
+        const saveCurrentNoteState = () => {
+          if (currentNote.value) {
+            currentNote.value.update_time = new Date().toISOString().split('T')[0];
+          }
+        };
+
+        const getNotePlainTextSummary = (content) => {
+          if (!content) return '';
+          // 简易正则过滤掉 Markdown 符号，返回纯文本预览
+          return content.replace(/[#*`>_\-\[\]]/g, '').substring(0, 100);
+        };
+
+        const renderMarkdown = (text) => {
+          if (!text) return '';
+          return marked.parse(text);
+        };
+
+
+        // --- 5. 团队协作与共享（全自研） ---
+        const team = ref({
+          id: 'team_01',
+          teamName: '计算机专业期末备考攻坚组',
+          creatorId: 'user_stu_9999', // 组长陈学长创建的
+          members: ['user_stu_9999', 'user_stu_1024', 'user_stu_2048'], // 组员ID列表
+          isShare: true, // 共享开关启用状态
+          create_time: '2026-05-01'
+        });
+
+        // 模拟全局用户库
+        const globalMembers = [
+          { id: 'user_stu_9999', username: '陈学长（组长）', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' },
+          { id: 'user_stu_1024', username: '王同学', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
+          { id: 'user_stu_2048', username: '李同学', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80' },
+          { id: 'user_stu_3333', username: '张学妹', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&auto=format&fit=crop&q=80' }
+        ];
+
+        const teamMembersInfo = computed(() => {
+          return globalMembers.filter(m => team.value.members.includes(m.id));
+        });
+
+        const getCreatorName = (creatorId) => {
+          const found = globalMembers.find(m => m.id === creatorId);
+          return found ? found.username : '未知用户';
+        };
+
+        // 开启关闭知识库整体共享 (仅限组长)
+        const toggleTeamSharing = () => {
+          if (currentUser.value.roleId !== 2) {
+            showToast('操作遭拒：只有团队创建者（陈学长）才能配置开启/关闭知识库共享开关！', 'error');
+            return;
+          }
+          team.value.isShare = !team.value.isShare;
+          showToast(team.value.isShare ? '已正式开启小组共享，组员将可勾选组长的知识库发起提问。' : '组长关闭了共享通道。组员将无法检索该共享分类下的文档。');
+        };
+
+        // 组长共享出来的文件夹模拟 (组长：陈学长 的持仓知识库)
+        const teamSharedCategories = ref([
+          { id: 'cat_share_001', categoryName: '高分学长计算机网络通关秘籍', user_id: 'user_stu_9999' }
+        ]);
+
+        const sharedCategoriesCount = computed(() => {
+          return team.value.isShare ? teamSharedCategories.value.length : 0;
+        });
+
+        // 组长邀请成员加入
+        const inviteUserNameInput = ref('');
+        const openInviteModal = () => {
+          inviteUserNameInput.value = '';
+          modals.value.inviteMember = true;
+        };
+        const submitInviteMember = () => {
+          const name = inviteUserNameInput.value.trim();
+          if (!name) {
+            showToast('邀请名字不能为空！', 'error');
+            return;
+          }
+          const foundInGlobal = globalMembers.find(m => m.username === name);
+          if (!foundInGlobal) {
+            showToast(`系统用户库中未找到用户 [${name}]`, 'error');
+            return;
+          }
+          if (team.value.members.includes(foundInGlobal.id)) {
+            showToast('该用户已经是小组成员了。', 'error');
+            return;
+          }
+          team.value.members.push(foundInGlobal.id);
+          showToast(`已成功将 [${name}] 拉入学习小组备考。`);
+          modals.value.inviteMember = false;
+        };
+
+        // 组长将成员踢出小组
+        const removeTeamMember = (memberId) => {
+          if (currentUser.value.roleId !== 2) {
+            showToast('越权操作：只有组长能够移除团队成员。', 'error');
+            return;
+          }
+          team.value.members = team.value.members.filter(m => m !== memberId);
+          showToast('成功将该成员移出当前学习协作小组。');
+        };
+
+        // --- 6. 系统主题及配置控制 ---
+        const themeClass = computed(() => {
+          return currentTheme.value === 'dark' ? 'dark' : 'light';
+        });
+
+        const setTheme = (themeMode) => {
+          currentTheme.value = themeMode;
+          const bodyEl = document.body;
+          if (themeMode === 'dark') {
+            bodyEl.classList.add('dark');
+            bodyEl.classList.remove('light');
+            bodyEl.style.backgroundColor = '#1C1614';
+          } else if (themeMode === 'light') {
+            bodyEl.classList.add('light');
+            bodyEl.classList.remove('dark');
+            bodyEl.style.backgroundColor = '#FAF6F0';
+          } else {
+            // 跟随系统偏好
+            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (isDark) {
+              bodyEl.classList.add('dark');
+              bodyEl.classList.remove('light');
+              bodyEl.style.backgroundColor = '#1C1614';
+            } else {
+              bodyEl.classList.add('light');
+              bodyEl.classList.remove('dark');
+              bodyEl.style.backgroundColor = '#FAF6F0';
+            }
+          }
+          showThemeDropdown.value = false;
+          showToast(`系统色彩偏好已切换：${themeMode === 'light' ? '白天温暖陶土' : themeMode === 'dark' ? '深夜舒适陶土' : '智能跟随系统'}`);
+        };
+
+        // 初始化工作
+        onMounted(() => {
+          setTheme('light'); // 默认莫兰迪温暖浅色调
+        });
+
+        return {
+          appId,
+          activeTab,
+          currentTheme,
+          showThemeDropdown,
+          toasts,
+          showToast,
+          currentUser,
+          switchRole,
+          passwordForm,
+          updateUserInfo,
+          triggerAvatarSelect,
+          categories,
+          files,
+          selectedCategoryId,
+          isSyncingCategory,
+          selectedCategory,
+          currentCategoryFiles,
+          selectCategory,
+          getFilesCountByCategory,
+          getCategorySyncStatus,
+          modals,
+          newCategoryName,
+          openCreateFolderModal,
+          submitCreateFolder,
+          activeRenameFolderObj,
+          renameCategoryName,
+          openRenameFolderModal,
+          submitRenameFolder,
+          deleteFolder,
+          handleFileUpload,
+          previewingFile,
+          previewFile,
+          activeRenameFileObj,
+          renameFileNameInput,
+          renameFile,
+          submitRenameFile,
+          deleteFile,
+          syncDify,
+          selectedChatCategories,
+          inputQuestion,
+          isAiTyping,
+          chatHistory,
+          getCategoryNameById,
+          preSetQuestion,
+          sendQuestion,
+          deleteChatEntry,
+          clearChatHistory,
+          notes,
+          selectedNoteId,
+          noteSearchQuery,
+          selectedNoteTag,
+          currentNote,
+          allNoteTags,
+          filteredNotes,
+          selectNote,
+          createNewNote,
+          deleteNote,
+          saveCurrentNoteState,
+          getNotePlainTextSummary,
+          renderMarkdown,
+          team,
+          teamMembersInfo,
+          getCreatorName,
+          toggleTeamSharing,
+          teamSharedCategories,
+          sharedCategoriesCount,
+          inviteUserNameInput,
+          openInviteModal,
+          submitInviteMember,
+          removeTeamMember,
+          themeClass,
+          setTheme
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
