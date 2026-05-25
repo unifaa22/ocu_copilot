@@ -8,7 +8,6 @@ export const authApi = {
 export const userApi = {
   getProfile: () => request.get('/user/profile'),
   updatePassword: (data) => request.put('/user/password', data),
-  updateTheme: (theme) => request.put('/user/theme', { theme }),
   uploadAvatar: (file) => {
     const form = new FormData()
     form.append('file', file)
@@ -65,7 +64,8 @@ export const teamApi = {
   joined: (params) => request.get('/teams/joined', { params }),
   detail: (id) => request.get(`/teams/${id}`),
   dissolve: (id) => request.delete(`/teams/${id}`),
-  toggleShare: (id, isShare) => request.put(`/teams/${id}/share`, { isShare }),
+  toggleShare: (id, isShare) =>
+    request.put(`/teams/${id}/share`, { isShare: isShare ? 1 : 0 }),
   members: (id, params) => request.get(`/teams/${id}/members`, { params }),
   invite: (id, username) => request.post(`/teams/${id}/invite`, { username }),
   pendingInvitations: (params) => request.get('/teams/invitations/pending', { params }),

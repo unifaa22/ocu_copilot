@@ -34,7 +34,6 @@
     "eslint-plugin-oxlint": "~1.60.0",
     "eslint-plugin-vue": "~10.8.0",
     "globals": "^17.5.0",
-    "msw": "^2.14.6",
     "npm-run-all2": "^8.0.4",
     "oxlint": "~1.60.0",
     "prettier": "3.8.3",
@@ -44,10 +43,5 @@
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
-  },
-  "msw": {
-    "workerDirectory": [
-      "public"
-    ]
   }
 }

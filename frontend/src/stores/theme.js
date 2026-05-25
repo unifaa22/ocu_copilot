@@ -1,8 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { usePreferredDark } from '@vueuse/core'
-import { userApi } from '@/api'
-import { useAuthStore } from './auth'
 
 const THEME_KEY = 'kw_theme'
 
@@ -33,18 +31,9 @@ export const useThemeStore = defineStore('theme', () => {
     applyTheme()
   }
 
-  async function setTheme(newTheme) {
+  function setTheme(newTheme) {
     theme.value = newTheme
     applyTheme()
-    const authStore = useAuthStore()
-    if (authStore.isLoggedIn) {
-      try {
-        await userApi.updateTheme(newTheme)
-        authStore.updateUser({ theme: newTheme })
-      } catch {
-        /* 本地主题已生效 */
-      }
-    }
   }
 
   watch(preferredDark, () => {

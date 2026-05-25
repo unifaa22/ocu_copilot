@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore, skipAuth } from '@/stores/auth'
+import { useAuthStore } from '@/stores/auth'
+import { resolveAuthRedirect } from '@/utils/authRedirect'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -64,22 +65,13 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const authStore = useAuthStore()
-
-  if (skipAuth) {
-    authStore.initDevBypass()
-    if (to.name === 'login' || to.name === 'register') {
-      return { path: '/home' }
-    }
-    return true
-  }
-
   const requiresAuth = to.matched.some((r) => r.meta.requiresAuth !== false)
 
   if (requiresAuth && !authStore.isLoggedIn) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
   if ((to.name === 'login' || to.name === 'register') && authStore.isLoggedIn) {
-    return { path: '/home' }
+    return resolveAuthRedirect(to.query.redirect)
   }
   return true
 })

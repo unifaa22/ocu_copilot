@@ -1,0 +1,22 @@
+package com.example.diagnoseillusion.config;
+
+import io.minio.MinioClient;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@RequiredArgsConstructor
+public class MinioConfig {
+
+    private final AppProperties appProperties;
+
+    @Bean
+    public MinioClient minioClient() {
+        AppProperties.Minio minio = appProperties.getMinio();
+        return MinioClient.builder()
+                .endpoint(minio.getEndpoint())
+                .credentials(minio.getAccessKey(), minio.getSecretKey())
+                .build();
+    }
+}

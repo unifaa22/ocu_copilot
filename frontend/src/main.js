@@ -5,14 +5,13 @@ import App from './App.vue'
 import router from './router'
 import { initThemeBeforeMount, useThemeStore } from './stores/theme'
 import { useAuthStore } from './stores/auth'
+import { unregisterLegacyMockWorker } from '@/utils/unregisterMockWorker'
 
 initThemeBeforeMount()
 
 async function bootstrap() {
-  if (import.meta.env.VITE_USE_MOCK === 'true') {
-    const { startMockServer } = await import('./mocks/browser')
-    await startMockServer()
-  }
+  const reloaded = await unregisterLegacyMockWorker()
+  if (reloaded) return
 
   const app = createApp(App)
   const pinia = createPinia()
@@ -20,7 +19,6 @@ async function bootstrap() {
   app.use(router)
 
   const authStore = useAuthStore(pinia)
-  authStore.initDevBypass()
   const themeStore = useThemeStore(pinia)
   themeStore.initFromUser(authStore.user?.theme || localStorage.getItem('kw_theme') || 'system')
 

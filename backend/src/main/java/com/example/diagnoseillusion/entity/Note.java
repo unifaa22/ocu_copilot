@@ -27,7 +27,7 @@ public class Note {
     private String title;
 
     @Lob
-    @Column(name = "content", nullable = false)
+    @Column(name = "content", nullable = false,columnDefinition = "LONGTEXT NOT NULL")
     private String content;
 
     @JdbcTypeCode(SqlTypes.JSON)

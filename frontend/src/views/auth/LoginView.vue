@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { resolveAuthRedirect } from '@/utils/authRedirect'
 import { useThemeStore } from '@/stores/theme'
 import { useToast } from '@/composables/useToast'
 
@@ -28,8 +29,7 @@ async function onSubmit() {
     const data = await authStore.login(form.value)
     themeStore.initFromUser(data.user?.theme || 'system')
     toast.success('登录成功')
-    const redirect = route.query.redirect || '/home'
-    router.push(redirect)
+    await router.replace(resolveAuthRedirect(route.query.redirect))
   } catch (e) {
     toast.error(e.message || '登录失败')
   } finally {

@@ -1,11 +1,13 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { resolveAuthRedirect } from '@/utils/authRedirect'
 import { useThemeStore } from '@/stores/theme'
 import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const toast = useToast()
@@ -31,7 +33,7 @@ async function onSubmit() {
     const data = await authStore.register(form.value)
     themeStore.initFromUser(data.user?.theme || 'system')
     toast.success('注册成功')
-    router.push('/home')
+    await router.replace(resolveAuthRedirect(route.query.redirect))
   } catch (e) {
     toast.error(e.message || '注册失败')
   } finally {

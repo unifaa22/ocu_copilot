@@ -1,15 +1,26 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useDebounceFn } from '@vueuse/core'
+import { useDebounceFn, usePreferredDark } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import { noteApi } from '@/api'
+import { useThemeStore } from '@/stores/theme'
 import { useToast } from '@/composables/useToast'
 import { formatDateTime } from '@/utils/format'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
 const toast = useToast()
+const themeStore = useThemeStore()
+const { theme } = storeToRefs(themeStore)
+const preferredDark = usePreferredDark()
+
+const editorTheme = computed(() => {
+  if (theme.value === 'dark') return 'dark'
+  if (theme.value === 'light') return 'light'
+  return preferredDark.value ? 'dark' : 'light'
+})
 
 const notes = ref([])
 const keyword = ref('')
@@ -255,6 +266,7 @@ onMounted(loadNotes)
         <MdEditor
           v-model="editorContent"
           class="flex-1"
+          :theme="editorTheme"
           language="zh-CN"
           preview-theme="default"
           :toolbars="['bold', 'italic', 'strikeThrough', 'title', 'quote', 'unorderedList', 'orderedList', 'code', 'link', 'preview', 'fullscreen']"
